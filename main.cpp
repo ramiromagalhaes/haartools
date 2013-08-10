@@ -134,10 +134,6 @@ int main(int argc, char * args[])
     std::vector<HaarWavelet *> wavelets;
     loadHaarWavelets(&sampleSize, &position, inputWaveletsFile.native(), wavelets);
 
-    //carrega os haar wavelets de um arquivo
-    //para cada haar wavelet carrega um srfs de acordo com a lista de haar wavelets
-    //atualiza os pesos do haar wavelet
-    //escreve no arquivo de saída
 
     for (std::vector<HaarWavelet*>::iterator it = wavelets.begin(); it != wavelets.end(); ++it)
     {
