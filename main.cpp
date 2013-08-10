@@ -1,60 +1,108 @@
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <algorithm>
+#include <iterator>
 
 #include "/home/ramiro/workspace/libpca-1.2.11/include/pca.h"
 
 using namespace std;
 
 
+bool loadpca(stats::pca &pca, char* filename)
+{
+    std::ifstream ifs;
+    ifs.open(filename, std::ifstream::in);
+
+    if (!ifs.is_open())
+    {
+        return false;
+    }
+
+    bool varNumberSet = false;
+
+    while(!ifs.eof())
+    {
+        std::string line;
+        getline(ifs, line);
+
+        std::vector<double> record;
+        std::istringstream lineInputStream(line);
+        while(!lineInputStream.eof())
+        {
+            float f;
+            if ( lineInputStream >> f )
+            {
+                record.push_back((double)f);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if ( !varNumberSet )
+        {
+            pca.set_num_variables(record.size());
+            varNumberSet = true;
+        }
+
+        if (!record.empty())
+        {
+            pca.add_record(record);
+        }
+    }
+
+    ifs.close();
+}
+
+
+
 
 int main(int argc, char * args[])
 {
-    stats::pca pca;
-
+    if (argc != 2)
     {
-        std::ifstream ifs;
-        ifs.open(args[1], std::ifstream::in);
-
-        while(!ifs.eof())
-        {
-            vector<double> record;
-            while(ifs.get() != '\n' || ifs.get() != 0)
-            {
-                float data;
-                ifs >> data;
-                record.push_back((double)data);
-            }
-            pca.add_record(record);
-        }
-
-        ifs.close();
+        return 1;
     }
 
-    std::cout << "Loaded PCA..." << std::endl;
+    {
+        //
+    }
+
+    {
+        stats::pca pca;
+        loadpca(pca, args[1]);
+        std::cout << "Loaded SRFS..." << std::endl;
 
 
-
-    pca.solve();
-
+        pca.solve();
 
 
-    std::cout << "Energy = "
-              << pca.get_energy()
-              << " ("
-              << stats::utils::get_sigma(pca.get_energy_boot())
-              << ")"
-              << std::endl;
+        for(int i = 0; i < pca.get_num_variables(); ++i)
+        {
+            pca.get_eigenvector(i);
+            std::cout << pca.get_eigenvalue(i) << " : (";
 
-    const std::vector<double> eigenvalues = pca.get_eigenvalues();
+            bool first = true;
+            const std::vector<double> eigenvector = pca.get_eigenvector(i);
+            for (std::vector<double>::const_iterator it = eigenvector.begin(); it != eigenvector.end(); ++it)
+            {
+                if (first)
+                {
+                    first = false;
+                }
+                else
+                {
+                    std::cout << ", ";
+                }
 
-    std::cout << "First three eigenvalues = "
-              << eigenvalues[0] << ", "
-              << eigenvalues[1] << ", "
-              << eigenvalues[2] << std::endl;
+                std::cout << *it;
+            }
 
-    cout << "Orthogonal Check = " << pca.check_eigenvectors_orthogonal() << std::endl;
-    cout << "Projection Check = " << pca.check_projection_accurate() << std::endl;
-
-    pca.save("pca_results");
+            std::cout << ")" << std::endl;
+        }
+    }
 
     return 0;
 }
