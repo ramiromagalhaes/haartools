@@ -1,18 +1,21 @@
 #include <iostream>
 #include <string>
 #include <sstream>
-#include <algorithm>
-#include <iterator>
+#include <limits>
 
-#include "/home/ramiro/workspace/libpca-1.2.11/include/pca.h"
+#include <boost/filesystem.hpp>
 
-using namespace std;
+#include "../libpca-1.2.11/include/pca.h"
+
+#include "../ecrsgen/lib/haarwavelet.h"
+#include "../ecrsgen/lib/haarwaveletutilities.h"
 
 
-bool loadpca(stats::pca &pca, char* filename)
+
+bool loadpca(stats::pca &pca, std::string filename)
 {
     std::ifstream ifs;
-    ifs.open(filename, std::ifstream::in);
+    ifs.open(filename.c_str(), std::ifstream::in);
 
     if (!ifs.is_open())
     {
@@ -57,52 +60,107 @@ bool loadpca(stats::pca &pca, char* filename)
 }
 
 
+void printSolution(stats::pca &pca)
+{
+    for(int i = 0; i < pca.get_num_variables(); ++i)
+    {
+        pca.get_eigenvector(i);
+        std::cout << pca.get_eigenvalue(i) << " : (";
+
+        bool first = true;
+        const std::vector<double> eigenvector = pca.get_eigenvector(i);
+        for (std::vector<double>::const_iterator it = eigenvector.begin(); it != eigenvector.end(); ++it)
+        {
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                std::cout << ", ";
+            }
+
+            std::cout << *it;
+        }
+
+        std::cout << ")" << std::endl;
+    }
+}
+
+
+
+std::vector<float> getPrincipalComponent(stats::pca &pca)
+{
+    pca.solve();
+
+    int max_value_index = 0;
+    float curr_max = std::numeric_limits<float>::min();
+    for (int i = 0; i < pca.get_num_variables(); ++i)
+    {
+        if (pca.get_eigenvalue(i) > curr_max)
+        {
+            curr_max = pca.get_eigenvalue(i);
+            max_value_index = i;
+        }
+    }
+
+    const std::vector<double> eigenvector = pca.get_eigenvector(max_value_index);
+    std::vector<float> returnMe;
+    for(std::vector<double>::const_iterator it = eigenvector.begin(); it != eigenvector.end(); ++it)
+    {
+        const double d = *it;
+        returnMe.push_back( (float)d );
+    }
+    return returnMe;
+}
+
 
 
 int main(int argc, char * args[])
 {
-    if (argc != 2)
+    if (argc != 4)
     {
         return 1;
     }
 
-    {
-        //
-    }
+    boost::filesystem::path inputWaveletsFile = args[1];
+    boost::filesystem::path srfsFolder = args[2];
+    boost::filesystem::path outputWaveletsFile = args[3];
 
+
+    cv::Size sampleSize(20, 20);
+    cv::Point position(0, 0);
+
+    std::vector<HaarWavelet *> wavelets;
+    loadHaarWavelets(&sampleSize, &position, inputWaveletsFile.native(), wavelets);
+
+    //carrega os haar wavelets de um arquivo
+    //para cada haar wavelet carrega um srfs de acordo com a lista de haar wavelets
+    //atualiza os pesos do haar wavelet
+    //escreve no arquivo de saída
+
+    for (std::vector<HaarWavelet*>::iterator it = wavelets.begin(); it != wavelets.end(); ++it)
     {
+        HaarWavelet * wavelet = *it;
+        std::stringstream srfsFileName;
+        wavelet->write(srfsFileName);
+        srfsFileName << ".txt";
+        const boost::filesystem::path srfsFile = srfsFolder / srfsFileName.str();
+
+        std::cout << "Optimizing Haar Wavelet with file " << srfsFile.string() << "...";
+
         stats::pca pca;
-        loadpca(pca, args[1]);
-        std::cout << "Loaded SRFS..." << std::endl;
-
-
-        pca.solve();
-
-
-        for(int i = 0; i < pca.get_num_variables(); ++i)
+        loadpca(pca, srfsFile.native());
+        const std::vector<float> newWeights = getPrincipalComponent(pca);
+        for (int i = 0; i < newWeights.size(); ++i)
         {
-            pca.get_eigenvector(i);
-            std::cout << pca.get_eigenvalue(i) << " : (";
-
-            bool first = true;
-            const std::vector<double> eigenvector = pca.get_eigenvector(i);
-            for (std::vector<double>::const_iterator it = eigenvector.begin(); it != eigenvector.end(); ++it)
-            {
-                if (first)
-                {
-                    first = false;
-                }
-                else
-                {
-                    std::cout << ", ";
-                }
-
-                std::cout << *it;
-            }
-
-            std::cout << ")" << std::endl;
+            wavelet->weight(i, newWeights[i]);
         }
+
+        std::cout << "done." << std::endl;
     }
+
+    writeHaarWavelets(outputWaveletsFile.native().c_str(), wavelets);
 
     return 0;
 }
