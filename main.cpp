@@ -132,7 +132,7 @@ int main(int argc, char * args[])
     cv::Point position(0, 0);
 
     std::vector<HaarWavelet *> wavelets;
-    loadHaarWavelets(&sampleSize, &position, inputWaveletsFile.native(), wavelets);
+    loadHaarWavelets(&sampleSize, inputWaveletsFile.native(), wavelets);
 
 
     for (std::vector<HaarWavelet*>::iterator it = wavelets.begin(); it != wavelets.end(); ++it)
