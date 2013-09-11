@@ -27,6 +27,8 @@ file( GLOB LIB_HEADERS /home/ramiro/workspace/ecrsgen/lib/*.h )
 add_library( haarwavelet ${LIB_SOURCES} ${LIB_HEADERS} )
 
 
-aux_source_directory(. SRC_LIST)
-add_executable(${PROJECT_NAME} ${SRC_LIST})
-target_link_libraries( ${PROJECT_NAME} libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
+add_executable(pcatool "main.cpp")
+target_link_libraries( pcatool libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
+
+add_executable(haarselector "haarselector.cpp")
+target_link_libraries( haarselector libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
