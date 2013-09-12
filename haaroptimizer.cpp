@@ -100,7 +100,7 @@ struct ClassifierData
             return false;
         }
 
-        for (int i = 0; i < mean.size(); i++)
+        for (unsigned int i = 0; i < mean.size(); i++)
         {
             out << ' ' << mean[i];
         }
@@ -207,15 +207,15 @@ void getOptimals(mypca & pca, ClassifierData & c)
 
     c.stdDev = 0;
     std::vector<double> temp(eigenvector.size());
-    for (int i = 0; i < eigenvector.size(); ++i)
+    for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
         temp[i] = 0;
-        for (int j = 0; j < eigenvector.size(); ++j)
+        for (unsigned int j = 0; j < eigenvector.size(); ++j)
         {
             temp[i] += eigenvector[j] * pca.cov_mat_.at(j, i);
         }
     }
-    for (int i = 0; i < eigenvector.size(); ++i)
+    for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
         c.stdDev += eigenvector[i] * temp[i];
     }
