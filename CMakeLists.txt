@@ -32,3 +32,6 @@ target_link_libraries( pcatool libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARI
 
 add_executable(haarselector "haarselector.cpp")
 target_link_libraries( haarselector libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
+
+add_executable(haaroptimizer "haaroptimizer.cpp")
+target_link_libraries( haaroptimizer libpca haarwavelet armadillo ${OpenCV_LIBS} ${Boost_LIBRARIES})
