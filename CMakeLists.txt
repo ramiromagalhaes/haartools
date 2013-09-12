@@ -26,12 +26,8 @@ file( GLOB LIB_SOURCES /home/ramiro/workspace/ecrsgen/lib/*.cpp )
 file( GLOB LIB_HEADERS /home/ramiro/workspace/ecrsgen/lib/*.h )
 add_library( haarwavelet ${LIB_SOURCES} ${LIB_HEADERS} )
 
-
 add_executable(pcatool "main.cpp")
 target_link_libraries( pcatool libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
-
-add_executable(haarselector "haarselector.cpp")
-target_link_libraries( haarselector libpca haarwavelet ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 add_executable(haaroptimizer "haaroptimizer.cpp")
 target_link_libraries( haaroptimizer libpca haarwavelet armadillo ${OpenCV_LIBS} ${Boost_LIBRARIES})
