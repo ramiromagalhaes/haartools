@@ -4,6 +4,7 @@
 #include <fstream>
 #include <limits>
 #include <algorithm>
+#include <numeric>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -209,20 +210,16 @@ void getOptimals(mypca & pca, ClassifierData & c)
 
     c.stdDev = 0;
     std::vector<double> temp(eigenvector.size());
+
     for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
-        temp[i] = 0;
-        for (unsigned int j = 0; j < eigenvector.size(); ++j)
-        {
-            temp[i] += eigenvector[j] * pca.cov_mat_.at(j, i);
-        }
-    }
-    for (unsigned int i = 0; i < eigenvector.size(); ++i)
-    {
-        c.stdDev += eigenvector[i] * temp[i];
+        std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
+        temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
+                                     column.begin(), .0);
     }
 
-    c.stdDev = std::sqrt(c.stdDev);
+    c.stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(),
+                                             temp.begin(), .0) );
 }
 
 
