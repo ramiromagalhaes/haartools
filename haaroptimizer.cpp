@@ -18,6 +18,8 @@
 #include "../ecrsgen/lib/haarwavelet.h"
 #include "../ecrsgen/lib/haarwaveletutilities.h"
 
+#include <tbb/tbb.h>
+
 
 
 #define SAMPLE_SIZE 20
@@ -254,16 +256,56 @@ void printSolution(mypca &pca)
 
 
 
-void writeClassifiersData(std::ofstream & outputStream, std::vector<ClassifierData> & classifiers)
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
 {
-    std::vector<ClassifierData>::const_iterator it = classifiers.begin();
-    const std::vector<ClassifierData>::const_iterator end = classifiers.end();
+    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
     for(; it != end; ++it)
     {
         it->write(outputStream);
         outputStream << '\n';
     }
 }
+
+
+
+/**
+ * Class (functor?) used by Intel TBB that will optimize the haar-like feature based classifiers
+ * using PCA.
+ */
+class Optimize
+{
+    std::vector<HaarWavelet*> * wavelets;
+    std::vector<cv::Mat> * integralSums;
+    std::vector<cv::Mat> * integralSquares;
+    tbb::concurrent_vector<ClassifierData> * classifiers;
+
+public:
+    void operator()(const tbb::blocked_range<std::vector<HaarWavelet*>::size_type> range) const
+    {
+        for(std::vector<HaarWavelet*>::size_type i = range.begin(); i != range.end(); ++i)
+        {
+            ClassifierData classifier;
+            classifier.wavelet = (*wavelets)[i];
+
+            mypca pca;
+            produceSrfs(pca, classifier.wavelet, *integralSums, *integralSquares);
+            pca.solve();
+
+            getOptimals(pca, classifier);
+
+            classifiers->push_back(classifier);
+        }
+    }
+
+    Optimize(std::vector<HaarWavelet*> * wavelets_,
+             std::vector<cv::Mat> * integralSums_,
+             std::vector<cv::Mat> * integralSquares_,
+             tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
+                                                      integralSums(integralSums_),
+                                                      integralSquares(integralSquares_),
+                                                      classifiers(classifiers_) {}
+};
 
 
 
@@ -330,28 +372,17 @@ int main(int argc, char* argv[])
 
 
 
-    std::vector<ClassifierData> classifiers;
-
-    std::vector<HaarWavelet*>::iterator waveletIt = wavelets.begin();
-    const std::vector<HaarWavelet*>::iterator waveletsEnd = wavelets.end();
-    for(; waveletIt != waveletsEnd; ++waveletIt)
-    {
-        ClassifierData classifier;
-        classifier.wavelet = *waveletIt;
-
-        mypca pca;
-        produceSrfs(pca, classifier.wavelet, integralSums, integralSquares);
-        pca.solve();
-
-        getOptimals(pca, classifier);
-
-        classifiers.push_back(classifier);
-
-        std::cout << "\rOptimized " << (int)(waveletIt - wavelets.begin()) + 1 << " of " << wavelets.size() << " classifiers.";
-    }
+    //TODO count progress
+    tbb::concurrent_vector<ClassifierData> classifiers;
+    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet*>::size_type >(0, wavelets.size()),
+                       Optimize(&wavelets, &integralSums, &integralSquares, &classifiers));
 
     //sort the solutions using the variance. The smallest variance goes first
-    std::sort(classifiers.begin(), classifiers.end(), reverseClassifierDataSorter);
+    tbb::parallel_sort(classifiers.begin(), classifiers.end(), reverseClassifierDataSorter);
+
+
+    std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
+
 
     //write all haar wavelets sorted from best to worst
     writeClassifiersData(outputStream, classifiers);
