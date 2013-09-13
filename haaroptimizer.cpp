@@ -210,14 +210,12 @@ void getOptimals(mypca & pca, ClassifierData & c)
 
     c.stdDev = 0;
     std::vector<double> temp(eigenvector.size());
-
     for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
         std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
         temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
                                      column.begin(), .0);
     }
-
     c.stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(),
                                              temp.begin(), .0) );
 }
