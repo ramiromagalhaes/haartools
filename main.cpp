@@ -5,10 +5,10 @@
 
 #include <boost/filesystem.hpp>
 
-#include "../libpca-1.2.11/include/pca.h"
+#include "pca.h"
 
-#include "../ecrsgen/lib/haarwavelet.h"
-#include "../ecrsgen/lib/haarwaveletutilities.h"
+#include "haarwavelet.h"
+#include "haarwaveletutilities.h"
 
 
 
