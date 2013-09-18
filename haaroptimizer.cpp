@@ -182,24 +182,8 @@ void produceSrfs(mypca & pca, HaarWavelet * wavelet, std::vector<cv::Mat> & inte
  */
 void getOptimals(mypca & pca, ClassifierData & c)
 {
-    unsigned int min_value_index = 0;
-    {
-        double min_val = std::numeric_limits<double>::max();
-
-        for (int i = 0; i < pca.get_num_variables(); ++i) //what's the smallest eigenvalue?
-        {
-            if ( pca.get_eigenvalue(i) < min_val )
-            {
-                min_value_index = i;
-                min_val = pca.get_eigenvalue(i);
-            }
-        }
-
-        std::vector<double> eigenvalues = pca.get_eigenvalues();
-        std::min(eigenvalues.begin(), eigenvalues.end());
-    }
-
-    const std::vector<double> eigenvector = pca.get_eigenvector( min_value_index );
+    //The smallest eigenvalue is the last one
+    const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
 
     for(unsigned int i = 0; i < eigenvector.size(); ++i)
     {
