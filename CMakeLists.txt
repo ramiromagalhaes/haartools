@@ -21,6 +21,12 @@ add_library( libpca SHARED IMPORTED )
 set_target_properties( libpca PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/libpca-1.2.11/build/libpca.so.1.2.11 )
 
 
+add_library( haarcommon-release SHARED IMPORTED )
+set_target_properties( haarcommon-release PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/haarcommon-build/libhaarcommon.a )
+add_library( haarcommon-debug SHARED IMPORTED )
+set_target_properties( haarcommon-debug PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/haarcommon-build-debug/libhaarcommon.a )
+
+
 #include paths to libpca and to haarcommon
 include_directories(/home/ramiro/workspace/libpca-1.2.11/include/
                     /home/ramiro/workspace/haarcommon/ )
@@ -28,7 +34,11 @@ link_directories(/home/ramiro/workspace/haarcommon-build/)
 
 
 add_executable(pcatool "main.cpp")
-target_link_libraries( pcatool libpca haarcommon ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries( pcatool libpca ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries( pcatool debug     haarcommon-debug   ${OpenCV_LIBS} ${Boost_LIBRARIES} tbb)
+target_link_libraries( pcatool optimized haarcommon-release ${OpenCV_LIBS} ${Boost_LIBRARIES} tbb)
 
 add_executable(haaroptimizer "haaroptimizer.cpp")
-target_link_libraries( haaroptimizer haarcommon libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries( haaroptimizer libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries( haaroptimizer debug     haarcommon-debug   ${OpenCV_LIBS} ${Boost_LIBRARIES} tbb)
+target_link_libraries( haaroptimizer optimized haarcommon-release ${OpenCV_LIBS} ${Boost_LIBRARIES} tbb)

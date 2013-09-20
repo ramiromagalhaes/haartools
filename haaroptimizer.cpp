@@ -72,14 +72,15 @@ public:
 
 
 
+//TODO consider replacing with a HaarClassifier.
 struct ClassifierData
 {
-    HaarWavelet * wavelet;
+    HaarWavelet wavelet;
     std::vector<double> mean;
     double stdDev;
     double q;
 
-    ClassifierData() : wavelet(0), mean(0), stdDev(0), q(1) {}
+    ClassifierData() : wavelet(), mean(0), stdDev(0), q(1) {}
 
     ClassifierData(const ClassifierData & c) : wavelet(c.wavelet),
                                                mean(c.mean),
@@ -98,19 +99,19 @@ struct ClassifierData
 
     bool write(std::ofstream & out) const
     {
-        if ( !wavelet->write(out) )
+        if ( !wavelet.write(out) )
         {
             return false;
         }
+
+        out << ' '
+            << 1 << ' ' //this was the polarity
+            << q;       //this is a default distance
 
         for (unsigned int i = 0; i < mean.size(); i++)
         {
             out << ' ' << mean[i];
         }
-
-        out << ' '
-            << stdDev << ' '
-            << q;
 
         return true;
     }
@@ -159,17 +160,16 @@ bool loadSamples(const boost::filesystem::path & samplesDir,
 
 
 
-void produceSrfs(mypca & pca, HaarWavelet * wavelet, std::vector<cv::Mat> & integralSums, std::vector<cv::Mat> & integralSquares)
+void produceSrfs(mypca & pca, HaarWavelet wavelet, std::vector<cv::Mat> & integralSums, std::vector<cv::Mat> & integralSquares)
 {
     const int records = integralSums.size();
 
-    pca.set_num_variables(wavelet->dimensions());
+    pca.set_num_variables(wavelet.dimensions());
 
-    std::vector<double> srfsVector( wavelet->dimensions() );
+    std::vector<double> srfsVector( wavelet.dimensions() );
     for (int i = 0; i < records; ++i)
     {
-        wavelet->setIntegralImages( &(integralSums[i]), &(integralSquares[i]) );
-        wavelet->srfs( srfsVector );
+        wavelet.srfs( integralSums[i], integralSquares[i], srfsVector );
 
         pca.add_record(srfsVector);
     }
@@ -187,7 +187,7 @@ void getOptimals(mypca & pca, ClassifierData & c)
 
     for(unsigned int i = 0; i < eigenvector.size(); ++i)
     {
-        c.wavelet->weight(i, (float) eigenvector[i]);
+        c.wavelet.weight(i, (float) eigenvector[i]);
     }
 
     c.mean = pca.get_mean_values();
@@ -254,15 +254,15 @@ void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<C
  */
 class Optimize
 {
-    std::vector<HaarWavelet*> * wavelets;
+    std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * integralSums;
     std::vector<cv::Mat> * integralSquares;
     tbb::concurrent_vector<ClassifierData> * classifiers;
 
 public:
-    void operator()(const tbb::blocked_range<std::vector<HaarWavelet*>::size_type> range) const
+    void operator()(const tbb::blocked_range<std::vector<HaarWavelet>::size_type> range) const
     {
-        for(std::vector<HaarWavelet*>::size_type i = range.begin(); i != range.end(); ++i)
+        for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
             ClassifierData classifier;
             classifier.wavelet = (*wavelets)[i];
@@ -277,7 +277,7 @@ public:
         }
     }
 
-    Optimize(std::vector<HaarWavelet*> * wavelets_,
+    Optimize(std::vector<HaarWavelet> * wavelets_,
              std::vector<cv::Mat> * integralSums_,
              std::vector<cv::Mat> * integralSquares_,
              tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
     cv::Size sampleSize(SAMPLE_SIZE, SAMPLE_SIZE); //size in pixels of the trainning images
 
 
-    std::vector<HaarWavelet*> wavelets;
+    std::vector<HaarWavelet> wavelets;
     std::vector<cv::Mat> integralSums, integralSquares;
     std::ofstream outputStream;
 
@@ -314,7 +314,7 @@ int main(int argc, char* argv[])
     {
         //Load a list of Haar wavelets
         std::cout << "Loading wavelets..." << std::endl;
-        if (!loadHaarWavelets(&sampleSize, waveletsFileName, wavelets))
+        if (!loadHaarWavelets(waveletsFileName, wavelets))
         {
             std::cout << "Unable to load Haar wavelets from file " << waveletsFileName << std::endl;
             return 2;
@@ -351,9 +351,8 @@ int main(int argc, char* argv[])
 
 
 
-    //TODO count progress
     tbb::concurrent_vector<ClassifierData> classifiers;
-    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet*>::size_type >(0, wavelets.size()),
+    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &integralSums, &integralSquares, &classifiers));
 
     //sort the solutions using the variance. The smallest variance goes first

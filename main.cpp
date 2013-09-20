@@ -128,18 +128,14 @@ int main(int argc, char * args[])
     boost::filesystem::path outputWaveletsFile = args[3];
 
 
-    cv::Size sampleSize(20, 20);
-    cv::Point position(0, 0);
-
-    std::vector<HaarWavelet *> wavelets;
-    loadHaarWavelets(&sampleSize, inputWaveletsFile.native(), wavelets);
+    std::vector<HaarWavelet> wavelets;
+    loadHaarWavelets(inputWaveletsFile.native(), wavelets);
 
 
-    for (std::vector<HaarWavelet*>::iterator it = wavelets.begin(); it != wavelets.end(); ++it)
+    for (std::vector<HaarWavelet>::iterator it = wavelets.begin(); it != wavelets.end(); ++it)
     {
-        HaarWavelet * wavelet = *it;
         std::stringstream srfsFileName;
-        wavelet->write(srfsFileName);
+        it->write(srfsFileName);
         srfsFileName << ".txt";
         const boost::filesystem::path srfsFile = srfsFolder / srfsFileName.str();
 
@@ -150,13 +146,13 @@ int main(int argc, char * args[])
         const std::vector<float> newWeights = getPrincipalComponent(pca);
         for (int i = 0; i < newWeights.size(); ++i)
         {
-            wavelet->weight(i, newWeights[i]);
+            it->weight(i, newWeights[i]);
         }
 
         std::cout << "done." << std::endl;
     }
 
-    writeHaarWavelets(outputWaveletsFile.native().c_str(), wavelets);
+    writeHaarWavelets(outputWaveletsFile.native(), wavelets);
 
     return 0;
 }
