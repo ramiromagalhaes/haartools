@@ -104,14 +104,14 @@ struct ClassifierData
             return false;
         }
 
-        out << ' '
-            << 1 << ' ' //this was the polarity
-            << q;       //this is a default distance
-
         for (unsigned int i = 0; i < mean.size(); i++)
         {
             out << ' ' << mean[i];
         }
+
+        out << ' '
+            << 1 << ' ' //this was the polarity
+            << q;       //this is a default distance
 
         return true;
     }
@@ -169,7 +169,7 @@ void produceSrfs(mypca & pca, HaarWavelet wavelet, std::vector<cv::Mat> & integr
     std::vector<double> srfsVector( wavelet.dimensions() );
     for (int i = 0; i < records; ++i)
     {
-        wavelet.srfs( integralSums[i], integralSquares[i], srfsVector );
+        wavelet.srfs( integralSums[i], srfsVector );
 
         pca.add_record(srfsVector);
     }
