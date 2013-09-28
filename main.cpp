@@ -57,6 +57,8 @@ bool loadpca(stats::pca &pca, std::string filename)
     }
 
     ifs.close();
+
+    return true;
 }
 
 
@@ -144,7 +146,7 @@ int main(int argc, char * args[])
         stats::pca pca;
         loadpca(pca, srfsFile.native());
         const std::vector<float> newWeights = getPrincipalComponent(pca);
-        for (int i = 0; i < newWeights.size(); ++i)
+        for (unsigned int i = 0; i < newWeights.size(); ++i)
         {
             it->weight(i, newWeights[i]);
         }

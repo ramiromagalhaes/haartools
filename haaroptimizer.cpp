@@ -73,56 +73,64 @@ public:
 
 
 //TODO consider replacing with a HaarClassifier.
-struct ClassifierData
+class ClassifierData : public MyHaarWavelet
 {
-    HaarWavelet wavelet;
-    std::vector<double> mean;
+protected:
     double stdDev;
-    double q;
 
-    ClassifierData() : wavelet(), mean(0), stdDev(0), q(1) {}
+public:
+    ClassifierData() : MyHaarWavelet(),
+                       stdDev(0) {}
 
-    ClassifierData(const ClassifierData & c) : wavelet(c.wavelet),
-                                               mean(c.mean),
-                                               stdDev(c.stdDev),
-                                               q(c.q) {}
+    ClassifierData(const HaarWavelet & h)
+    {
+        rects.resize(h.dimensions());
+        weights.resize(h.dimensions());
+        for (unsigned int i = 0; i < h.dimensions(); ++i)
+        {
+            rects[i] = h.rect(i);
+            weights[i] = h.weight(i);
+        }
+    }
 
     ClassifierData &operator=(const ClassifierData & c)
     {
-        wavelet = c.wavelet;
-        mean = c.mean;
+        rects = c.rects;
+        weights = c.weights;
+        means = c.means;
         stdDev = c.stdDev;
-        q = c.q;
 
         return *this;
     }
 
-    bool write(std::ofstream & out) const
+    void setMeans(const std::vector<double> & means_)
     {
-        if ( !wavelet.write(out) )
+        means.resize( means_.size() );
+        for (unsigned int i = 0; i < means_.size(); ++i)
         {
-            return false;
+            means[i] = means_[i];
         }
+    }
 
-        for (unsigned int i = 0; i < mean.size(); i++)
+    void setWeights(const std::vector<double> & weights_)
+    {
+        weights.reserve(weights_.size());
+        for (unsigned int i = 0; i < weights_.size(); ++i)
         {
-            out << ' ' << mean[i];
+            weights[i] = weights_[i];
         }
+    }
 
-        out << ' '
-            << 1 << ' ' //this was the polarity
-            << q;       //this is a default distance
+    void setStdDev(const double stdDev_)
+    {
+        stdDev = stdDev_;
+    }
 
-        return true;
+    bool operator < (const ClassifierData & rh) const
+    {
+        return stdDev < rh.stdDev;
     }
 };
-
-
-
-bool reverseClassifierDataSorter(const ClassifierData &c1, const ClassifierData &c2)
-{
-    return c1.stdDev < c2.stdDev;
-}
 
 
 
@@ -160,7 +168,7 @@ bool loadSamples(const boost::filesystem::path & samplesDir,
 
 
 
-void produceSrfs(mypca & pca, HaarWavelet wavelet, std::vector<cv::Mat> & integralSums, std::vector<cv::Mat> & integralSquares)
+void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums, const std::vector<cv::Mat> & integralSquares)
 {
     const int records = integralSums.size();
 
@@ -185,14 +193,10 @@ void getOptimals(mypca & pca, ClassifierData & c)
     //The smallest eigenvalue is the last one
     const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
 
-    for(unsigned int i = 0; i < eigenvector.size(); ++i)
-    {
-        c.wavelet.weight(i, (float) eigenvector[i]);
-    }
+    c.setWeights(eigenvector);
+    c.setMeans( pca.get_mean_values() );
 
-    c.mean = pca.get_mean_values();
-
-    c.stdDev = 0;
+    double stdDev = 0;
     std::vector<double> temp(eigenvector.size());
     for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
@@ -200,8 +204,9 @@ void getOptimals(mypca & pca, ClassifierData & c)
         temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
                                      column.begin(), .0);
     }
-    c.stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(),
-                                             temp.begin(), .0) );
+    stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(), temp.begin(), .0) );
+
+    c.setStdDev(stdDev);
 }
 
 
@@ -264,11 +269,10 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            ClassifierData classifier;
-            classifier.wavelet = (*wavelets)[i];
+            ClassifierData classifier( (*wavelets)[i] );
 
             mypca pca;
-            produceSrfs(pca, classifier.wavelet, *integralSums, *integralSquares);
+            produceSrfs(pca, classifier, *integralSums, *integralSquares);
             pca.solve();
 
             getOptimals(pca, classifier);
@@ -356,7 +360,7 @@ int main(int argc, char* argv[])
                        Optimize(&wavelets, &integralSums, &integralSquares, &classifiers));
 
     //sort the solutions using the variance. The smallest variance goes first
-    tbb::parallel_sort(classifiers.begin(), classifiers.end(), reverseClassifierDataSorter);
+    tbb::parallel_sort(classifiers.begin(), classifiers.end());
 
 
     std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
