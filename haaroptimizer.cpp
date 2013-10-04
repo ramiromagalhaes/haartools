@@ -18,6 +18,7 @@
 
 #include "haarwavelet.h"
 #include "haarwaveletutilities.h"
+#include "haarwaveletevaluators.h"
 
 #include <tbb/tbb.h>
 
@@ -72,7 +73,6 @@ public:
 
 
 
-//TODO consider replacing with a HaarClassifier.
 class ClassifierData : public MyHaarWavelet
 {
 protected:
@@ -170,6 +170,8 @@ bool loadSamples(const boost::filesystem::path & samplesDir,
 
 void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums, const std::vector<cv::Mat> & integralSquares)
 {
+    const IntensityNormalizedWaveletEvaluator evaluator;
+
     const int records = integralSums.size();
 
     pca.set_num_variables(wavelet.dimensions());
@@ -177,7 +179,7 @@ void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv:
     std::vector<double> srfsVector( wavelet.dimensions() );
     for (int i = 0; i < records; ++i)
     {
-        wavelet.srfs( integralSums[i], srfsVector );
+        evaluator.srfs(wavelet, integralSums[i], srfsVector);
 
         pca.add_record(srfsVector);
     }
