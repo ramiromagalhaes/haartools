@@ -3,8 +3,8 @@ project(pcatool)
 cmake_minimum_required(VERSION 2.8)
 
 # Debug and release configurations
-set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -D_DEBUG -Wextra -Wall")
-set(CMAKE_CSS_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -D_DEBUG -Wextra -Wall -std=c++11")
+set(CMAKE_CSS_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -std=c++11")
 
 # Includes OpenCV and Boost
 find_package( OpenCV REQUIRED COMPONENTS core imgproc highgui objdetect )
