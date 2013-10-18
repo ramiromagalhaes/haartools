@@ -96,7 +96,7 @@ std::vector<float> getPrincipalComponent(stats::pca &pca)
     pca.solve();
 
     int max_value_index = 0;
-    float curr_max = std::numeric_limits<float>::min();
+    float curr_max = -std::numeric_limits<float>::max();
     for (int i = 0; i < pca.get_num_variables(); ++i)
     {
         if (pca.get_eigenvalue(i) > curr_max)
