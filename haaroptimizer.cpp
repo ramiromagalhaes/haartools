@@ -256,8 +256,7 @@ void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<C
 
 
 /**
- * Class (functor?) used by Intel TBB that will optimize the haar-like feature based classifiers
- * using PCA.
+ * Functor used by Intel TBB to optimize the haar-like feature based classifiers using PCA.
  */
 class Optimize
 {
@@ -295,7 +294,10 @@ public:
 
 
 /**
- *
+ * Loads the Haar wavelets from a file and the image samples found in a directory, then produce
+ * the SRFS for each Haar wavelet. Extract the principal component of least variance and use it
+ * as the new weights of the respective Haar wavelet. When all is done, write the 'optimized'
+ * Haar wavelets to a file.
  */
 int main(int argc, char* argv[])
 {
@@ -353,7 +355,7 @@ int main(int argc, char* argv[])
 
 
 
-    std::cout << "Optimizing classifiers..." << std::endl;
+    std::cout << "Optimizing Haar-like features..." << std::endl;
 
 
 
