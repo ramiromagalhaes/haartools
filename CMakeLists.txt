@@ -24,16 +24,15 @@ set_target_properties( haarcommon-debug   PROPERTIES IMPORTED_LOCATION /home/ram
 
 
 
-
 # The Haar wavelet generator
-add_executable( haargen "haargen.cpp" )
+add_executable( haargen haargen.cpp )
 target_link_libraries( haargen haarcommon-release ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 # The Haar wavelet checker
-add_executable( haarcheck "haarcheck.cpp" )
+add_executable( haarcheck haarcheck.cpp )
 target_link_libraries( haarcheck haarcommon-release ${OpenCV_LIBS} )
 
 # The Haar wavelet PCA optimizer
-add_executable(haaroptimizer "haaroptimizer.cpp")
+add_executable(haaroptimizer haaroptimizer.cpp mypca.h mypca.cpp )
 target_link_libraries( haaroptimizer debug     haarcommon-debug   libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 target_link_libraries( haaroptimizer optimized haarcommon-release libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
