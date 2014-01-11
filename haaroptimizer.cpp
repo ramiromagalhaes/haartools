@@ -13,6 +13,7 @@
 #include <boost/filesystem/fstream.hpp>
 
 #include "mypca.h"
+#include "optimization_commons.h"
 
 #include "haarwavelet.h"
 #include "haarwaveletutilities.h"
@@ -87,59 +88,6 @@ public:
 
 
 
-bool loadSamples(const boost::filesystem::path & samplesDir,
-            std::vector<cv::Mat> & integralSums,
-            std::vector<cv::Mat> & integralSquares)
-{
-    const boost::filesystem::directory_iterator end_iter;
-    for( boost::filesystem::directory_iterator dir_iter(samplesDir) ; dir_iter != end_iter ; ++dir_iter)
-    {
-        if ( !boost::filesystem::is_regular_file(dir_iter->status()) )
-        {
-            std::cerr << dir_iter->path().native() << "is not a regular file." << std::endl;
-            continue;
-        }
-
-        const std::string samplename = dir_iter->path().string();
-        cv::Mat sample = cv::imread(samplename, CV_LOAD_IMAGE_GRAYSCALE);
-        if (!sample.data)
-        {
-            std::cerr << "Failed to open file sample file " << samplename;
-            continue;
-        }
-
-        cv::Mat integralSum(sample.rows + 1, sample.cols + 1, CV_64F);
-        cv::Mat integralSquare(sample.rows + 1, sample.cols + 1, CV_64F);
-        cv::integral(sample, integralSum, integralSquare, CV_64F);
-
-        integralSums.push_back(integralSum);
-        integralSquares.push_back(integralSquare);
-    }
-
-    return true;
-}
-
-
-
-void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums, const std::vector<cv::Mat> & integralSquares)
-{
-    const IntensityNormalizedWaveletEvaluator evaluator;
-
-    const int records = integralSums.size();
-
-    pca.set_num_variables(wavelet.dimensions());
-
-    std::vector<double> srfsVector( wavelet.dimensions() );
-    for (int i = 0; i < records; ++i)
-    {
-        evaluator.srfs(wavelet, integralSums[i], srfsVector);
-
-        pca.add_record(srfsVector);
-    }
-}
-
-
-
 /**
  * Returns the principal component with the smallest variance.
  */
@@ -162,35 +110,6 @@ void getOptimals(mypca & pca, ClassifierData & c)
     stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(), temp.begin(), .0) );
 
     c.setStdDev(stdDev);
-}
-
-
-
-void printSolution(mypca &pca)
-{
-    for(int i = 0; i < pca.get_num_variables(); ++i)
-    {
-        pca.get_eigenvector(i);
-        std::cout << pca.get_eigenvalue(i) << " : (";
-
-        bool first = true;
-        const std::vector<double> eigenvector = pca.get_eigenvector(i);
-        for (std::vector<double>::const_iterator it = eigenvector.begin(); it != eigenvector.end(); ++it)
-        {
-            if (first)
-            {
-                first = false;
-            }
-            else
-            {
-                std::cout << ", ";
-            }
-
-            std::cout << *it;
-        }
-
-        std::cout << ")" << std::endl;
-    }
 }
 
 
