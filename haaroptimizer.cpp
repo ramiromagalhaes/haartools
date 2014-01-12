@@ -134,7 +134,6 @@ class Optimize
 {
     std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * integralSums;
-    std::vector<cv::Mat> * integralSquares;
     tbb::concurrent_vector<ClassifierData> * classifiers;
 
 public:
@@ -145,7 +144,7 @@ public:
             ClassifierData classifier( (*wavelets)[i] );
 
             mypca pca;
-            produceSrfs(pca, classifier, *integralSums, *integralSquares);
+            produceSrfs(pca, classifier, *integralSums);
             pca.solve();
 
             getOptimals(pca, classifier);
@@ -156,11 +155,9 @@ public:
 
     Optimize(std::vector<HaarWavelet> * wavelets_,
              std::vector<cv::Mat> * integralSums_,
-             std::vector<cv::Mat> * integralSquares_,
              tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
-                                                      integralSums(integralSums_),
-                                                      integralSquares(integralSquares_),
-                                                      classifiers(classifiers_) {}
+                                                                      integralSums(integralSums_),
+                                                                      classifiers(classifiers_) {}
 };
 
 
@@ -183,11 +180,10 @@ int main(int argc, char* argv[])
     const std::string samplesDirName = argv[2];      //load samples from here
     const std::string classifiersFileName = argv[3]; //write output here
 
-    cv::Size sampleSize(SAMPLE_SIZE, SAMPLE_SIZE); //size in pixels of the trainning images
 
 
     std::vector<HaarWavelet> wavelets;
-    std::vector<cv::Mat> integralSums, integralSquares;
+    std::vector<cv::Mat> integralSums;
     std::ofstream outputStream;
 
 
@@ -217,7 +213,7 @@ int main(int argc, char* argv[])
         }
 
         std::cout << "Loading samples..." << std::endl;
-        if ( !loadSamples(samplesDir, integralSums, integralSquares) )
+        if ( !loadSamples(samplesDir, integralSums) )
         {
             std::cout << "Failed to load samples." << std::endl;
             return 6;
@@ -233,7 +229,7 @@ int main(int argc, char* argv[])
 
     tbb::concurrent_vector<ClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
-                       Optimize(&wavelets, &integralSums, &integralSquares, &classifiers));
+                       Optimize(&wavelets, &integralSums, &classifiers));
 
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());

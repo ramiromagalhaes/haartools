@@ -12,6 +12,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
+#include "optimization_commons.h"
 #include "mypca.h"
 
 #include "haarwavelet.h"
@@ -28,6 +29,31 @@
 
 class ClassifierData : public HaarWavelet
 {
+public:
+    ClassifierData() : histogram(100) {}
+
+    ClassifierData(const HaarWavelet & wavelet) : histogram(100)
+    {
+        rects.resize(wavelet.dimensions());
+        weights.resize(wavelet.dimensions());
+        for (unsigned int i = 0; i < wavelet.dimensions(); ++i)
+        {
+            rects[i] = wavelet.rect(i);
+            weights[i] = wavelet.weight(i);
+        }
+    }
+
+    ClassifierData& operator=(const ClassifierData & c)
+    {
+        rects = c.rects;
+        weights = c.weights;
+        mean = c.mean;
+        stdDev = c.stdDev;
+        histogram = c.histogram;
+
+        return *this;
+    }
+
     void setWeights(const std::vector<double> & weights_)
     {
         weights.reserve(weights_.size());
@@ -36,16 +62,7 @@ class ClassifierData : public HaarWavelet
             weights[i] = weights_[i];
         }
     }
-};
 
-
-class GaussianClassifierData : public ClassifierData
-{
-private:
-    double stdDev; //statistics taken from the feature value, not directly from the SRFS
-    double mean;
-
-public:
     void setStdDev(const double stdDev_)
     {
         stdDev = stdDev_;
@@ -55,55 +72,83 @@ public:
     {
         mean = mean_;
     }
-};
-
-
-
-class HistogramClassifierData : public ClassifierData
-{
-private:
-    std::vector<double> histogram;
-public:
-    HistogramClassifierData() : histogram(100) {}
 
     void setHistogram(std::vector<double> histogram_)
     {
         histogram = histogram_;
     }
+
+    bool operator < (const ClassifierData & rh) const
+    {
+        return stdDev < rh.stdDev;
+    }
+
+private:
+    double stdDev; //statistics taken from the feature value, not directly from the SRFS
+    double mean;
+    std::vector<double> histogram;
 };
 
 
 
-/**
- * Returns the principal component with the smallest variance.
- */
-void getOptimals(mypca & pca, GaussianClassifierData & c)
+void getOptimalsForPositiveSamples(mypca & pca, ClassifierData & c)
 {
-    //The smallest eigenvalue is the last one
-    const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
-
-    c.setWeights(eigenvector);
-    c.setMeans( pca.get_mean_values() );
-
-    double stdDev = 0;
-    std::vector<double> temp(eigenvector.size());
-    for (unsigned int i = 0; i < eigenvector.size(); ++i)
     {
-        std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
-        temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
-                                     column.begin(), .0);
+        //This block sets the mean. It is acquired from the projection of the
+        //mean values of the PCA in the direction of the eigenvector (weights).
+        std::vector<double> meanSrfs = pca.get_mean_values();
+        const double mean = std::inner_product(c.weights_begin(),
+                                               c.weights_end(),
+                                               meanSrfs.begin(), .0);
+        c.setMean( mean );
     }
-    stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(), temp.begin(), .0) );
 
-    c.setStdDev(stdDev);
+    {
+        //This block sets the standard deviation. It is acquired from the projection
+        //of the covariance matrix in the directin of the eigenvector (weights).
+        std::vector<double> temp(c.dimensions());
+        for (unsigned int i = 0; i < c.dimensions(); ++i)
+        {
+            std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
+            temp[i] = std::inner_product(c.weights_begin(),
+                                         c.weights_end(),
+                                         column.begin(), .0);
+        }
+        const double stdDev = std::sqrt( std::inner_product(c.weights_begin(),
+                                                            c.weights_end(),
+                                                            temp.begin(), .0) );
+        c.setStdDev(stdDev);
+    }
 }
 
 
 
-void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<GaussianClassifierData> & classifiers)
+void getOptimalsForNegativeSamples(mypca & pca, ClassifierData & c)
 {
-    tbb::concurrent_vector<GaussianClassifierData>::const_iterator it = classifiers.begin();
-    tbb::concurrent_vector<GaussianClassifierData>::const_iterator end = classifiers.end();
+    std::vector<double> histogram(100);
+    const double increment = 1.0/pca.get_num_records();
+
+    for (long i = 0; i < pca.get_num_records(); ++i)
+    {
+        std::vector<double> r = pca.get_record(i);
+        double featureValue = std::inner_product(c.weights_begin(),
+                                                 c.weights_end(),
+                                                 r.begin(), .0);
+
+        //increment bin count
+        int index = featureValue >= std::sqrt(2) ? 100 :
+                    featureValue <= -std::sqrt(2) ? 0 :
+                    (int)(50 * featureValue / std::sqrt(2)) + 50;
+        histogram[index] += increment;
+    }
+}
+
+
+
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
+{
+    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
     for(; it != end; ++it)
     {
         it->write(outputStream);
@@ -120,34 +165,43 @@ class Optimize
 {
 private:
     std::vector<HaarWavelet> * wavelets;
-    std::vector<cv::Mat> * integralSums;
-    std::vector<cv::Mat> * integralSquares;
-    tbb::concurrent_vector<GaussianClassifierData> * classifiers;
+    std::vector<cv::Mat> * positivesIntegralSums;
+    std::vector<cv::Mat> * negativesIntegralSums;
+    tbb::concurrent_vector<ClassifierData> * classifiers;
 
 public:
     void operator()(const tbb::blocked_range<std::vector<HaarWavelet>::size_type> range) const
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            GaussianClassifierData classifier( (*wavelets)[i] );
+            ClassifierData classifier( (*wavelets)[i] );
 
-            mypca pca;
-            produceSrfs(pca, classifier, *integralSums, *integralSquares);
-            pca.solve();
+            {
+                mypca positive_samples_pca;
+                produceSrfs(positive_samples_pca, classifier, *positivesIntegralSums);
+                positive_samples_pca.solve();
+                getOptimalsForPositiveSamples(positive_samples_pca, classifier);
+            }
 
-            getOptimals(pca, classifier);
+            {
+                mypca negative_samples_pca;
+                produceSrfs(negative_samples_pca, classifier, *negativesIntegralSums);
+                negative_samples_pca.solve();
+                getOptimalsForNegativeSamples(negative_samples_pca, classifier);
+            }
 
             classifiers->push_back(classifier);
         }
     }
 
     Optimize(std::vector<HaarWavelet> * wavelets_,
-             std::vector<cv::Mat> * integralSums_,
-             std::vector<cv::Mat> * integralSquares_,
-             tbb::concurrent_vector<GaussianClassifierData> * classifiers_) : wavelets(wavelets_),
-                                                      integralSums(integralSums_),
-                                                      integralSquares(integralSquares_),
-                                                      classifiers(classifiers_) {}
+             std::vector<cv::Mat> * positivesIntegralSums_,
+             std::vector<cv::Mat> * negativesIntegralSums_,
+             tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
+                                                                      positivesIntegralSums(positivesIntegralSums_),
+                                                                      negativesIntegralSums(negativesIntegralSums_),
+                                                                      classifiers(classifiers_) {}
+
 };
 
 
@@ -162,19 +216,19 @@ int main(int argc, char* argv[])
 {
     if (argc != 4)
     {
-        std::cout << "Usage " << argv[0] << " " << " WAVELETS_FILE SAMPLES_DIR OUTPUT_DIR" << std::endl;
+        std::cout << "Usage " << argv[0] << " " << " WAVELETS_FILE POSITIVE_SAMPLES_DIR NEGATIVE_SAMPLES_DIR OUTPUT_DIR" << std::endl;
         return 1;
     }
 
-    const std::string waveletsFileName = argv[1];    //load Haar wavelets from here
-    const std::string samplesDirName = argv[2];      //load samples from here
-    const std::string classifiersFileName = argv[3]; //write output here
+    const std::string waveletsFileName = argv[1];       //load Haar wavelets from here
+    const std::string positiveSamplesDirName = argv[2]; //load + samples from here
+    const std::string negativeSamplesDirName = argv[3]; //load - samples from here
+    const std::string classifiersFileName = argv[4];    //write output here
 
-    cv::Size sampleSize(SAMPLE_SIZE, SAMPLE_SIZE); //size in pixels of the trainning images
 
 
     std::vector<HaarWavelet> wavelets;
-    std::vector<cv::Mat> integralSums, integralSquares;
+    std::vector<cv::Mat> positivesIntegralSums, negativesIntegralSums;
     std::ofstream outputStream;
 
 
@@ -188,12 +242,20 @@ int main(int argc, char* argv[])
         }
         std::cout << wavelets.size() << " wavelets loaded." << std::endl;
 
-        //Check if the samples directory exist and is a directory
-        const boost::filesystem::path samplesDir(samplesDirName);
-        if ( !boost::filesystem::exists(samplesDirName) || !boost::filesystem::is_directory(samplesDirName) )
+        //Check if the positive samples directory exist and is a directory
+        const boost::filesystem::path positiveSamplesDir(positiveSamplesDirName);
+        if ( !boost::filesystem::exists(positiveSamplesDir) || !boost::filesystem::is_directory(positiveSamplesDir) )
         {
-            std::cout << "Sample directory " << samplesDir << " does not exist or is not a directory." << std::endl;
+            std::cout << "Sample directory " << positiveSamplesDir << " does not exist or is not a directory." << std::endl;
             return 3;
+        }
+
+        //Check if the negative samples directory exist and is a directory
+        const boost::filesystem::path negativeSamplesDir(negativeSamplesDirName);
+        if ( !boost::filesystem::exists(negativeSamplesDir) || !boost::filesystem::is_directory(negativeSamplesDir) )
+        {
+            std::cout << "Sample directory " << negativeSamplesDir << " does not exist or is not a directory." << std::endl;
+            return 4;
         }
 
         outputStream.open(classifiersFileName.c_str(), std::ios::trunc);
@@ -203,13 +265,21 @@ int main(int argc, char* argv[])
             return 5;
         }
 
-        std::cout << "Loading samples..." << std::endl;
-        if ( !loadSamples(samplesDir, integralSums, integralSquares) )
+        std::cout << "Loading positive samples..." << std::endl;
+        if ( !loadSamples(positiveSamplesDir, positivesIntegralSums) )
         {
-            std::cout << "Failed to load samples." << std::endl;
+            std::cout << "Failed to load positive samples." << std::endl;
             return 6;
         }
-        std::cout << integralSums.size() << " samples loaded." << std::endl;
+        std::cout << positivesIntegralSums.size() << " samples loaded." << std::endl;
+
+        std::cout << "Loading negative samples..." << std::endl;
+        if ( !loadSamples(negativeSamplesDir, negativesIntegralSums) )
+        {
+            std::cout << "Failed to load negative samples." << std::endl;
+            return 7;
+        }
+        std::cout << negativesIntegralSums.size() << " samples loaded." << std::endl;
     }
 
 
@@ -218,16 +288,14 @@ int main(int argc, char* argv[])
 
 
 
-    tbb::concurrent_vector<GaussianClassifierData> classifiers;
+    tbb::concurrent_vector<ClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
-                       Optimize(&wavelets, &integralSums, &integralSquares, &classifiers));
+                       Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
 
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());
 
-
     std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
-
 
     //write all haar wavelets sorted from best to worst
     writeClassifiersData(outputStream, classifiers);

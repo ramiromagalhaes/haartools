@@ -20,9 +20,7 @@
 
 
 
-bool loadSamples(const boost::filesystem::path & samplesDir,
-            std::vector<cv::Mat> & integralSums,
-            std::vector<cv::Mat> & integralSquares)
+bool loadSamples(const boost::filesystem::path & samplesDir, std::vector<cv::Mat> & integralSums)
 {
     const boost::filesystem::directory_iterator end_iter;
     for( boost::filesystem::directory_iterator dir_iter(samplesDir) ; dir_iter != end_iter ; ++dir_iter)
@@ -42,11 +40,9 @@ bool loadSamples(const boost::filesystem::path & samplesDir,
         }
 
         cv::Mat integralSum(sample.rows + 1, sample.cols + 1, CV_64F);
-        cv::Mat integralSquare(sample.rows + 1, sample.cols + 1, CV_64F);
-        cv::integral(sample, integralSum, integralSquare, CV_64F);
+        cv::integral(sample, integralSum, CV_64F);
 
         integralSums.push_back(integralSum);
-        integralSquares.push_back(integralSquare);
     }
 
     return true;
@@ -54,7 +50,7 @@ bool loadSamples(const boost::filesystem::path & samplesDir,
 
 
 
-void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums, const std::vector<cv::Mat> & integralSquares)
+void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums)
 {
     const IntensityNormalizedWaveletEvaluator evaluator;
 
