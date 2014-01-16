@@ -22,6 +22,10 @@ set_target_properties( haarcommon-release PROPERTIES IMPORTED_LOCATION /home/ram
 add_library( haarcommon-debug SHARED IMPORTED )
 set_target_properties( haarcommon-debug   PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/haarcommon-build-debug/src/libhaarcommon.so )
 
+# Include training database tools library
+include_directories( /home/ramiro/workspace/trainingdatabase-tools/lib )
+add_library( trainingdatabase SHARED IMPORTED )
+set_target_properties( trainingdatabase PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/trainingdatabase-tools-build/lib/libtrainingdatabase-lib.so )
 
 
 # The Haar wavelet generator
@@ -34,10 +38,10 @@ target_link_libraries( haarcheck haarcommon-release ${OpenCV_LIBS} )
 
 # The Haar wavelet PCA optimizer
 add_executable(haaroptimizer haaroptimizer.cpp mypca.h mypca.cpp optimization_commons.h )
-target_link_libraries( haaroptimizer debug     haarcommon-debug   libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
-target_link_libraries( haaroptimizer optimized haarcommon-release libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
 # The Haar wavelet PCA optimizer for the second experiment
 add_executable(haaroptimizer2 haaroptimizer2.cpp mypca.h mypca.cpp optimization_commons.h )
-target_link_libraries( haaroptimizer2 debug     haarcommon-debug   libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
-target_link_libraries( haaroptimizer2 optimized haarcommon-release libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer2 debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer2 optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )

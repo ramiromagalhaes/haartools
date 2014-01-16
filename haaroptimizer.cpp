@@ -12,12 +12,14 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-#include "mypca.h"
 #include "optimization_commons.h"
+#include "mypca.h"
 
 #include "haarwavelet.h"
 #include "haarwaveletutilities.h"
 #include "haarwaveletevaluators.h"
+
+#include "sampleextractor.h"
 
 #include <tbb/tbb.h>
 
@@ -89,45 +91,6 @@ public:
 
 
 /**
- * Returns the principal component with the smallest variance.
- */
-void getOptimals(mypca & pca, ClassifierData & c)
-{
-    //The smallest eigenvalue is the last one
-    const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
-
-    c.setWeights(eigenvector);
-    c.setMeans( pca.get_mean_values() );
-
-    double stdDev = 0;
-    std::vector<double> temp(eigenvector.size());
-    for (unsigned int i = 0; i < eigenvector.size(); ++i)
-    {
-        std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
-        temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
-                                     column.begin(), .0);
-    }
-    stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(), temp.begin(), .0) );
-
-    c.setStdDev(stdDev);
-}
-
-
-
-void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
-{
-    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
-    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
-    for(; it != end; ++it)
-    {
-        it->write(outputStream);
-        outputStream << '\n';
-    }
-}
-
-
-
-/**
  * Functor used by Intel TBB to optimize the haar-like feature based classifiers using PCA.
  */
 class Optimize
@@ -135,6 +98,30 @@ class Optimize
     std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * integralSums;
     tbb::concurrent_vector<ClassifierData> * classifiers;
+
+    /**
+     * Returns the principal component with the smallest variance.
+     */
+    void getOptimals(mypca & pca, ClassifierData & c) const
+    {
+        //The smallest eigenvalue is the last one
+        const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
+
+        c.setWeights(eigenvector);
+        c.setMeans( pca.get_mean_values() );
+
+        double stdDev = 0;
+        std::vector<double> temp(eigenvector.size());
+        for (unsigned int i = 0; i < eigenvector.size(); ++i)
+        {
+            std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
+            temp[i] = std::inner_product(eigenvector.begin(), eigenvector.end(),
+                                         column.begin(), .0);
+        }
+        stdDev = std::sqrt( std::inner_product(eigenvector.begin(), eigenvector.end(), temp.begin(), .0) );
+
+        c.setStdDev(stdDev);
+    }
 
 public:
     void operator()(const tbb::blocked_range<std::vector<HaarWavelet>::size_type> range) const
@@ -162,6 +149,19 @@ public:
 
 
 
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
+{
+    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
+    for(; it != end; ++it)
+    {
+        it->write(outputStream);
+        outputStream << '\n';
+    }
+}
+
+
+
 /**
  * Loads the Haar wavelets from a file and the image samples found in a directory, then produce
  * the SRFS for each Haar wavelet. Extract the principal component of least variance and use it
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
     }
 
     const std::string waveletsFileName = argv[1];    //load Haar wavelets from here
-    const std::string samplesDirName = argv[2];      //load samples from here
+    const std::string samplesFileName = argv[2];     //load samples from here
     const std::string classifiersFileName = argv[3]; //write output here
 
 
@@ -197,14 +197,6 @@ int main(int argc, char* argv[])
         }
         std::cout << wavelets.size() << " wavelets loaded." << std::endl;
 
-        //Check if the samples directory exist and is a directory
-        const boost::filesystem::path samplesDir(samplesDirName);
-        if ( !boost::filesystem::exists(samplesDirName) || !boost::filesystem::is_directory(samplesDirName) )
-        {
-            std::cout << "Sample directory " << samplesDir << " does not exist or is not a directory." << std::endl;
-            return 3;
-        }
-
         outputStream.open(classifiersFileName.c_str(), std::ios::trunc);
         if ( !outputStream.is_open() )
         {
@@ -212,13 +204,16 @@ int main(int argc, char* argv[])
             return 5;
         }
 
-        std::cout << "Loading samples..." << std::endl;
-        if ( !loadSamples(samplesDir, integralSums) )
+        //TODO The second parameter here does not match what is expected for the rest of the program!
+        if ( !SampleExtractor::extractFromBigImage(samplesFileName, integralSums) )
         {
-            std::cout << "Failed to load samples." << std::endl;
+            std::cout << "Failed to load positive samples." << std::endl;
             return 6;
         }
-        std::cout << integralSums.size() << " samples loaded." << std::endl;
+        std::transform(integralSums.begin(), integralSums.end(),
+                       integralSums.begin(),
+                       ToIntegralSums());
+        std::cout << integralSums.size() << " positive samples loaded." << std::endl;
     }
 
 
