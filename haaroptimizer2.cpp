@@ -29,12 +29,12 @@
 
 
 
-class ClassifierData : public HaarWavelet
+class ProbabilisticClassifierData : public HaarWavelet
 {
 public:
-    ClassifierData() : histogram(100) {}
+    ProbabilisticClassifierData() : histogram(100) {}
 
-    ClassifierData(const HaarWavelet & wavelet) : histogram(100)
+    ProbabilisticClassifierData(const HaarWavelet & wavelet) : histogram(100)
     {
         rects.resize(wavelet.dimensions());
         weights.resize(wavelet.dimensions());
@@ -45,7 +45,7 @@ public:
         }
     }
 
-    ClassifierData& operator=(const ClassifierData & c)
+    ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
         rects = c.rects;
         weights = c.weights;
@@ -80,7 +80,7 @@ public:
         histogram = histogram_;
     }
 
-    bool operator < (const ClassifierData & rh) const
+    bool operator < (const ProbabilisticClassifierData & rh) const
     {
         return stdDev < rh.stdDev;
     }
@@ -126,9 +126,9 @@ private:
     std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * positivesIntegralSums;
     std::vector<cv::Mat> * negativesIntegralSums;
-    tbb::concurrent_vector<ClassifierData> * classifiers;
+    tbb::concurrent_vector<ProbabilisticClassifierData> * classifiers;
 
-    void getOptimalsForPositiveSamples(mypca & pca, ClassifierData & c) const
+    void getOptimalsForPositiveSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
         //The highest variance eigenvector is the first one.
         c.setWeights(pca.get_eigenvector(0));
@@ -163,9 +163,11 @@ private:
 
 
 
-    void getOptimalsForNegativeSamples(mypca & pca, ClassifierData & c) const
+    void getOptimalsForNegativeSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
         std::vector<double> histogram(100);
+        std::fill(histogram.begin(), histogram.end(), .0);
+
         const double increment = 1.0/pca.get_num_records();
 
         for (long i = 0; i < pca.get_num_records(); ++i)
@@ -190,7 +192,7 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            ClassifierData classifier( (*wavelets)[i] );
+            ProbabilisticClassifierData classifier( (*wavelets)[i] );
 
             {
                 mypca positive_samples_pca;
@@ -213,7 +215,7 @@ public:
     Optimize(std::vector<HaarWavelet> * wavelets_,
              std::vector<cv::Mat> * positivesIntegralSums_,
              std::vector<cv::Mat> * negativesIntegralSums_,
-             tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
+             tbb::concurrent_vector<ProbabilisticClassifierData> * classifiers_) : wavelets(wavelets_),
                                                                       positivesIntegralSums(positivesIntegralSums_),
                                                                       negativesIntegralSums(negativesIntegralSums_),
                                                                       classifiers(classifiers_) {}
@@ -222,10 +224,10 @@ public:
 
 
 
-void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ProbabilisticClassifierData> & classifiers)
 {
-    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
-    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
+    tbb::concurrent_vector<ProbabilisticClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<ProbabilisticClassifierData>::const_iterator end = classifiers.end();
     for(; it != end; ++it)
     {
         it->write(outputStream);
@@ -306,7 +308,7 @@ int main(int argc, char* argv[])
 
     std::cout << "Optimizing Haar-like features..." << std::endl;
 
-    tbb::concurrent_vector<ClassifierData> classifiers;
+    tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
 

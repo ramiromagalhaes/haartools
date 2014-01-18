@@ -29,16 +29,16 @@
 
 
 
-class ClassifierData : public MyHaarWavelet
+class MyClassifierData : public MyHaarWavelet
 {
 protected:
     double stdDev;
 
 public:
-    ClassifierData() : MyHaarWavelet(),
+    MyClassifierData() : MyHaarWavelet(),
                        stdDev(0) {}
 
-    ClassifierData(const HaarWavelet & h)
+    MyClassifierData(const HaarWavelet & h)
     {
         rects.resize(h.dimensions());
         weights.resize(h.dimensions());
@@ -49,7 +49,7 @@ public:
         }
     }
 
-    ClassifierData &operator=(const ClassifierData & c)
+    MyClassifierData &operator=(const MyClassifierData & c)
     {
         rects = c.rects;
         weights = c.weights;
@@ -82,7 +82,7 @@ public:
         stdDev = stdDev_;
     }
 
-    bool operator < (const ClassifierData & rh) const
+    bool operator < (const MyClassifierData & rh) const
     {
         return stdDev < rh.stdDev;
     }
@@ -97,12 +97,12 @@ class Optimize
 {
     std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * integralSums;
-    tbb::concurrent_vector<ClassifierData> * classifiers;
+    tbb::concurrent_vector<MyClassifierData> * classifiers;
 
     /**
      * Returns the principal component with the smallest variance.
      */
-    void getOptimals(mypca & pca, ClassifierData & c) const
+    void getOptimals(mypca & pca, MyClassifierData & c) const
     {
         //The smallest eigenvalue is the last one
         const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
@@ -128,7 +128,7 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            ClassifierData classifier( (*wavelets)[i] );
+            MyClassifierData classifier( (*wavelets)[i] );
 
             mypca pca;
             produceSrfs(pca, classifier, *integralSums);
@@ -142,17 +142,17 @@ public:
 
     Optimize(std::vector<HaarWavelet> * wavelets_,
              std::vector<cv::Mat> * integralSums_,
-             tbb::concurrent_vector<ClassifierData> * classifiers_) : wavelets(wavelets_),
+             tbb::concurrent_vector<MyClassifierData> * classifiers_) : wavelets(wavelets_),
                                                                       integralSums(integralSums_),
                                                                       classifiers(classifiers_) {}
 };
 
 
 
-void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<ClassifierData> & classifiers)
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<MyClassifierData> & classifiers)
 {
-    tbb::concurrent_vector<ClassifierData>::const_iterator it = classifiers.begin();
-    tbb::concurrent_vector<ClassifierData>::const_iterator end = classifiers.end();
+    tbb::concurrent_vector<MyClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<MyClassifierData>::const_iterator end = classifiers.end();
     for(; it != end; ++it)
     {
         it->write(outputStream);
@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
 
 
 
-    tbb::concurrent_vector<ClassifierData> classifiers;
+    tbb::concurrent_vector<MyClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &integralSums, &classifiers));
 
