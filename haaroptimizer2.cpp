@@ -173,14 +173,14 @@ private:
         for (long i = 0; i < pca.get_num_records(); ++i)
         {
             std::vector<double> r = pca.get_record(i);
-            double featureValue = std::inner_product(c.weights_begin(),
-                                                     c.weights_end(),
-                                                     r.begin(), .0);
+            const double featureValue = std::inner_product(c.weights_begin(),
+                                                           c.weights_end(),
+                                                           r.begin(), .0);
 
             //increment bin count
-            int index = featureValue >= std::sqrt(2) ? 100 :
-                        featureValue <= -std::sqrt(2) ? 0 :
-                        (int)(50.0 * featureValue / std::sqrt(2)) + 50;
+            const int index = featureValue >= std::sqrt(2) ? 100 :
+                              featureValue <= -std::sqrt(2) ? 0 :
+                              (int)(50.0 * featureValue / std::sqrt(2)) + 50;
             histogram[index] += increment;
         }
 
