@@ -312,9 +312,6 @@ int main(int argc, char* argv[])
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
 
-//    Optimize opt(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers);
-//    opt( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()) );
-
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());
 
