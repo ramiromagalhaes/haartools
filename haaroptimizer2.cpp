@@ -180,7 +180,7 @@ private:
             //increment bin count
             int index = featureValue >= std::sqrt(2) ? 100 :
                         featureValue <= -std::sqrt(2) ? 0 :
-                        (int)(50 * featureValue / std::sqrt(2)) + 50;
+                        (int)(50.0 * featureValue / std::sqrt(2)) + 50;
             histogram[index] += increment;
         }
 
