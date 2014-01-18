@@ -136,9 +136,11 @@ int main(int argc, char * args[])
         if ( std::fabs(sumOfHistogram - 1.0) > 0.000001)
         {
             ok = false;
-            std::cerr << "Haar-like classifier histogram with index " << it - classifiers.begin() << " adds to " << sumOfHistogram << std::endl;
+            std::cerr << "Haar-like feature histogram with index " << it - classifiers.begin() << " adds to " << sumOfHistogram << std::endl;
         }
     }
+
+    std::cout << "Total Haar-like features tested: " << end - classifiers.begin() << std::endl;
 
     if (ok)
     {
