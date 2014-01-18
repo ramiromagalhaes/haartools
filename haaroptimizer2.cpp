@@ -216,10 +216,9 @@ public:
              std::vector<cv::Mat> * positivesIntegralSums_,
              std::vector<cv::Mat> * negativesIntegralSums_,
              tbb::concurrent_vector<ProbabilisticClassifierData> * classifiers_) : wavelets(wavelets_),
-                                                                      positivesIntegralSums(positivesIntegralSums_),
-                                                                      negativesIntegralSums(negativesIntegralSums_),
-                                                                      classifiers(classifiers_) {}
-
+                                                                                   positivesIntegralSums(positivesIntegralSums_),
+                                                                                   negativesIntegralSums(negativesIntegralSums_),
+                                                                                   classifiers(classifiers_) {}
 };
 
 
