@@ -10,7 +10,7 @@
 
 
 
-class ProbabilisticClassifierData : public HaarWavelet
+class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
     ProbabilisticClassifierData() : histogram(100) {}
@@ -18,7 +18,8 @@ public:
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
         rects = c.rects;
-        weights = c.weights;
+        weightsPositive = c.weightsPositive;
+        weightsNegative = c.weightsNegative;
         mean = c.mean;
         stdDev = c.stdDev;
         histogram = c.histogram;
@@ -33,25 +34,20 @@ public:
 
     bool read(std::istream &input)
     {
-        HaarWavelet::read(input);
+        if ( !DualWeightHaarWavelet::read(input) )
+        {
+            return false;
+        }
 
         input >> mean
               >> stdDev;
 
-        int i = 0;
-        for (; i < 100; ++i)
+        for (int i = 0; i < 100; ++i)
         {
             input >> histogram[i];
         }
 
-        if (i == 100)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return true;
     }
 
     std::vector<double>& getHistogram()

@@ -131,7 +131,7 @@ public:
             MyClassifierData classifier( (*wavelets)[i] );
 
             mypca pca;
-            produceSrfs(pca, classifier, *integralSums);
+            produceSrfs(pca, &classifier, *integralSums);
             pca.solve();
 
             getOptimals(pca, classifier);

@@ -32,18 +32,18 @@ struct ToIntegralSums
 
 
 
-void produceSrfs(mypca & pca, const HaarWavelet & wavelet, const std::vector<cv::Mat> & integralSums)
+void produceSrfs(mypca & pca, const AbstractHaarWavelet * const wavelet, const std::vector<cv::Mat> & integralSums)
 {
     const IntensityNormalizedWaveletEvaluator evaluator;
 
     const int records = integralSums.size();
 
-    pca.set_num_variables(wavelet.dimensions());
+    pca.set_num_variables(wavelet->dimensions());
 
-    std::vector<double> srfsVector( wavelet.dimensions() );
+    std::vector<double> srfsVector( wavelet->dimensions() );
     for (int i = 0; i < records; ++i)
     {
-        evaluator.srfs(wavelet, integralSums[i], srfsVector);
+        evaluator.srfs(*wavelet, integralSums[i], srfsVector);
 
         pca.add_record(srfsVector);
     }

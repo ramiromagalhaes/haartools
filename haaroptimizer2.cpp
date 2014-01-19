@@ -29,26 +29,36 @@
 
 
 
-class ProbabilisticClassifierData : public HaarWavelet
+class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
-    ProbabilisticClassifierData() : histogram(100) {}
+    ProbabilisticClassifierData() : mean(.0),
+                                    stdDev(1.0),
+                                    histogram(100) {}
 
-    ProbabilisticClassifierData(const HaarWavelet & wavelet) : histogram(100)
+    ProbabilisticClassifierData(const HaarWavelet & wavelet) : ProbabilisticClassifierData()
     {
-        rects.resize(wavelet.dimensions());
-        weights.resize(wavelet.dimensions());
-        for (unsigned int i = 0; i < wavelet.dimensions(); ++i)
+        std::vector<cv::Rect>::const_iterator it = wavelet.rects_begin();
+
+        for(; it != wavelet.rects_end(); ++it)
         {
-            rects[i] = wavelet.rect(i);
-            weights[i] = wavelet.weight(i);
+            rects.push_back(*it);
         }
+
+        weightsPositive.resize(wavelet.dimensions(), 0);
+        weightsNegative.resize(wavelet.dimensions(), 0);
     }
+
+    ProbabilisticClassifierData(const DualWeightHaarWavelet & wavelet) : DualWeightHaarWavelet(wavelet),
+                                                                         mean(.0),
+                                                                         stdDev(1.0),
+                                                                         histogram(100) {}
 
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
         rects = c.rects;
-        weights = c.weights;
+        weightsPositive = c.weightsPositive;
+        weightsNegative = c.weightsNegative;
         mean = c.mean;
         stdDev = c.stdDev;
         histogram = c.histogram;
@@ -56,12 +66,23 @@ public:
         return *this;
     }
 
-    void setWeights(const std::vector<double> & weights_)
+    void setPositiveWeights(const std::vector<double> & projection_)
     {
-        weights.reserve(weights_.size());
-        for (unsigned int i = 0; i < weights_.size(); ++i)
+        DualWeightHaarWavelet::weightsPositive.reserve(dimensions());
+
+        for(unsigned int i = 0; i < projection_.size(); ++i)
         {
-            weights[i] = weights_[i];
+            DualWeightHaarWavelet::weightsPositive[i] = projection_[i];
+        }
+    }
+
+    void setNegativeWeight(const std::vector<double> & projection_)
+    {
+        DualWeightHaarWavelet::weightsNegative.reserve(dimensions());
+
+        for(unsigned int i = 0; i < projection_.size(); ++i)
+        {
+            DualWeightHaarWavelet::weightsNegative[i] = projection_[i];
         }
     }
 
@@ -87,31 +108,27 @@ public:
 
     bool write(std::ostream &output) const
     {
-        HaarWavelet::write(output);
+        if ( !DualWeightHaarWavelet::write(output) )
+        {
+            return false;
+        }
 
         output << ' '
                << mean << ' '
                << stdDev;
 
-        int i = 0;
-        for (; i < 100; ++i)
+        for (int i = 0; i < 100; ++i)
         {
             output << ' ' << histogram[i];
         }
 
-        if (i == 100)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return true;
     }
 
 private:
     double stdDev; //statistics taken from the feature value, not directly from the SRFS
     double mean;
+
     std::vector<double> histogram;
 };
 
@@ -131,14 +148,14 @@ private:
     void getOptimalsForPositiveSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
         //The highest variance eigenvector is the first one.
-        c.setWeights(pca.get_eigenvector(0));
+        c.setPositiveWeights(pca.get_eigenvector(0));
 
         {
             //This block sets the mean. It is acquired from the projection of the
             //mean values of the PCA in the direction of the eigenvector (weights).
             std::vector<double> meanSrfs = pca.get_mean_values();
-            const double mean = std::inner_product(c.weights_begin(),
-                                                   c.weights_end(),
+            const double mean = std::inner_product(c.weightsPositive_begin(),
+                                                   c.weightsPositive_end(),
                                                    meanSrfs.begin(), .0);
             c.setMean( mean );
         }
@@ -150,12 +167,12 @@ private:
             for (unsigned int i = 0; i < c.dimensions(); ++i)
             {
                 std::vector<double> column = stats::utils::extract_column_vector(pca.cov_mat_, i);
-                temp[i] = std::inner_product(c.weights_begin(),
-                                             c.weights_end(),
+                temp[i] = std::inner_product(c.weightsPositive_begin(),
+                                             c.weightsPositive_end(),
                                              column.begin(), .0);
             }
-            const double stdDev = std::sqrt( std::inner_product(c.weights_begin(),
-                                                                c.weights_end(),
+            const double stdDev = std::sqrt( std::inner_product(c.weightsPositive_begin(),
+                                                                c.weightsPositive_end(),
                                                                 temp.begin(), .0) );
             c.setStdDev(stdDev);
         }
@@ -165,6 +182,8 @@ private:
 
     void getOptimalsForNegativeSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
+        c.setNegativeWeight(pca.get_eigenvector(0));
+
         std::vector<double> histogram(100);
         std::fill(histogram.begin(), histogram.end(), .0);
 
@@ -173,8 +192,8 @@ private:
         for (long i = 0; i < pca.get_num_records(); ++i)
         {
             std::vector<double> r = pca.get_record(i);
-            const double featureValue = std::inner_product(c.weights_begin(),
-                                                           c.weights_end(),
+            const double featureValue = std::inner_product(c.weightsNegative_begin(),
+                                                           c.weightsNegative_end(),
                                                            r.begin(), .0);
 
             //increment bin count
@@ -196,14 +215,14 @@ public:
 
             {
                 mypca positive_samples_pca;
-                produceSrfs(positive_samples_pca, classifier, *positivesIntegralSums);
+                produceSrfs(positive_samples_pca, &classifier, *positivesIntegralSums);
                 positive_samples_pca.solve();
                 getOptimalsForPositiveSamples(positive_samples_pca, classifier);
             }
 
             {
                 mypca negative_samples_pca;
-                produceSrfs(negative_samples_pca, classifier, *negativesIntegralSums);
+                produceSrfs(negative_samples_pca, &classifier, *negativesIntegralSums);
                 negative_samples_pca.solve();
                 getOptimalsForNegativeSamples(negative_samples_pca, classifier);
             }
@@ -310,6 +329,8 @@ int main(int argc, char* argv[])
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
+//    Optimize opt(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers);
+//    opt(tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()));
 
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());
