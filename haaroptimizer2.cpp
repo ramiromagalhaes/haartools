@@ -25,7 +25,7 @@
 
 
 
-#define SAMPLE_SIZE 20
+#define HISTOGRAM_BUCKETS 12
 
 
 
@@ -34,7 +34,7 @@ class ProbabilisticClassifierData : public DualWeightHaarWavelet
 public:
     ProbabilisticClassifierData() : mean(.0),
                                     stdDev(1.0),
-                                    histogram(100) {}
+                                    histogram(HISTOGRAM_BUCKETS) {}
 
     ProbabilisticClassifierData(const HaarWavelet & wavelet) : ProbabilisticClassifierData()
     {
@@ -52,7 +52,7 @@ public:
     ProbabilisticClassifierData(const DualWeightHaarWavelet & wavelet) : DualWeightHaarWavelet(wavelet),
                                                                          mean(.0),
                                                                          stdDev(1.0),
-                                                                         histogram(100) {}
+                                                                         histogram(HISTOGRAM_BUCKETS) {}
 
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
@@ -117,7 +117,7 @@ public:
                << mean << ' '
                << stdDev;
 
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < HISTOGRAM_BUCKETS; ++i)
         {
             output << ' ' << histogram[i];
         }
@@ -184,7 +184,7 @@ private:
     {
         c.setNegativeWeight(pca.get_eigenvector(0));
 
-        std::vector<double> histogram(100);
+        std::vector<double> histogram(HISTOGRAM_BUCKETS);
         std::fill(histogram.begin(), histogram.end(), .0);
 
         const double increment = 1.0/pca.get_num_records();
@@ -197,9 +197,9 @@ private:
                                                            r.begin(), .0);
 
             //increment bin count
-            const int index = featureValue >= std::sqrt(2) ? 100 :
+            const int index = featureValue >= std::sqrt(2) ? HISTOGRAM_BUCKETS :
                               featureValue <= -std::sqrt(2) ? 0 :
-                              (int)(50.0 * featureValue / std::sqrt(2)) + 50;
+                              (int)((HISTOGRAM_BUCKETS/2.0) * featureValue / std::sqrt(2)) + HISTOGRAM_BUCKETS/2;
             histogram[index] += increment;
         }
 
