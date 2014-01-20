@@ -9,11 +9,13 @@
 #include "haarwavelet.h"
 
 
+#define HISTOGRAM_BUCKETS 12
+
 
 class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
-    ProbabilisticClassifierData() : histogram(100) {}
+    ProbabilisticClassifierData() : histogram(HISTOGRAM_BUCKETS) {}
 
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
@@ -42,7 +44,7 @@ public:
         input >> mean
               >> stdDev;
 
-        for (int i = 0; i < 100; ++i)
+        for (int i = 0; i < HISTOGRAM_BUCKETS; ++i)
         {
             input >> histogram[i];
         }
@@ -53,6 +55,16 @@ public:
     std::vector<double>& getHistogram()
     {
         return histogram;
+    }
+
+    double getStdDev() const
+    {
+        return stdDev;
+    }
+
+    double getMean() const
+    {
+        return mean;
     }
 
 private:
@@ -129,10 +141,16 @@ int main(int argc, char * args[])
         std::vector<double> histogram = it->getHistogram();
 
         double sumOfHistogram = std::accumulate(histogram.begin(), histogram.end(), .0);
-        if ( std::fabs(sumOfHistogram - 1.0) > 0.000001)
+        if ( std::fabs(sumOfHistogram - 1.0) > 0.000001 )
         {
             ok = false;
-            std::cerr << "Haar-like feature histogram with index " << it - classifiers.begin() << " adds to " << sumOfHistogram << std::endl;
+            std::cerr << "Haar-like feature with index " << it - classifiers.begin() << " histogram adds to " << sumOfHistogram << std::endl;
+        }
+
+        if ( std::fabs(it->getStdDev()) < 0.000009 )
+        {
+            ok = false;
+            std::cerr << "Haar-like feature with index " << it - classifiers.begin() << " standard deviation is 0.";
         }
     }
 
