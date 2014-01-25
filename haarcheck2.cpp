@@ -44,7 +44,9 @@ public:
         input >> mean
               >> stdDev;
 
-        for (int i = 0; i < HISTOGRAM_BUCKETS; ++i)
+        int buckets = 0;
+        input >> buckets;
+        for (int i = 0; i < buckets; ++i)
         {
             input >> histogram[i];
         }

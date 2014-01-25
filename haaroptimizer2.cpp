@@ -33,8 +33,7 @@ class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
     ProbabilisticClassifierData() : mean(.0),
-                                    stdDev(1.0),
-                                    histogram(HISTOGRAM_BUCKETS) {}
+                                    stdDev(1.0) {}
 
     ProbabilisticClassifierData(const HaarWavelet & wavelet) : ProbabilisticClassifierData()
     {
@@ -51,8 +50,7 @@ public:
 
     ProbabilisticClassifierData(const DualWeightHaarWavelet & wavelet) : DualWeightHaarWavelet(wavelet),
                                                                          mean(.0),
-                                                                         stdDev(1.0),
-                                                                         histogram(HISTOGRAM_BUCKETS) {}
+                                                                         stdDev(1.0) {}
 
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
     {
@@ -115,9 +113,10 @@ public:
 
         output << ' '
                << mean << ' '
-               << stdDev;
+               << stdDev << ' '
+               << histogram.size();
 
-        for (int i = 0; i < HISTOGRAM_BUCKETS; ++i)
+        for (int i = 0; i < histogram.size(); ++i)
         {
             output << ' ' << histogram[i];
         }
@@ -197,9 +196,9 @@ private:
                                                            r.begin(), .0);
 
             //increment bin count
-            const int index = featureValue >= std::sqrt(2) ? HISTOGRAM_BUCKETS :
+            const int index = featureValue >= std::sqrt(2) ? histogram.size() :
                               featureValue <= -std::sqrt(2) ? 0 :
-                              (int)((HISTOGRAM_BUCKETS/2.0) * featureValue / std::sqrt(2)) + HISTOGRAM_BUCKETS/2;
+                              (int)((histogram.size()/2.0) * featureValue / std::sqrt(2)) + histogram.size()/2;
             histogram[index] += increment;
         }
 
