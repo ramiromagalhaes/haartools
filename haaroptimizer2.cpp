@@ -74,7 +74,7 @@ public:
         }
     }
 
-    void setNegativeWeight(const std::vector<double> & projection_)
+    void setNegativeWeights(const std::vector<double> & projection_)
     {
         DualWeightHaarWavelet::weightsNegative.reserve(dimensions());
 
@@ -181,7 +181,7 @@ private:
 
     void getOptimalsForNegativeSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
-        c.setNegativeWeight(pca.get_eigenvector(0));
+        c.setNegativeWeights(pca.get_eigenvector(0));
 
         std::vector<double> histogram(HISTOGRAM_BUCKETS);
         std::fill(histogram.begin(), histogram.end(), .0);
