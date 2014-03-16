@@ -29,16 +29,21 @@
 
 
 
-class MyClassifierData : public MyHaarWavelet
+/**
+ * Sets parameters to the weak classifier that creates a band over the SRFS,
+ * as proposed in http://www.thinkmind.org/index.php?view=article&articleid=icons_2014_3_20_40057.
+ * Data produced here can also be used as the PCA optimized Haar Wavelets.
+ */
+class BandClassifierData : public MyHaarWavelet
 {
 protected:
     double stdDev;
 
 public:
-    MyClassifierData() : MyHaarWavelet(),
+    BandClassifierData() : MyHaarWavelet(),
                        stdDev(0) {}
 
-    MyClassifierData(const HaarWavelet & h)
+    BandClassifierData(const HaarWavelet & h)
     {
         rects.resize(h.dimensions());
         weights.resize(h.dimensions());
@@ -49,7 +54,7 @@ public:
         }
     }
 
-    MyClassifierData &operator=(const MyClassifierData & c)
+    BandClassifierData &operator=(const BandClassifierData & c)
     {
         rects = c.rects;
         weights = c.weights;
@@ -82,7 +87,7 @@ public:
         stdDev = stdDev_;
     }
 
-    bool operator < (const MyClassifierData & rh) const
+    bool operator < (const BandClassifierData & rh) const
     {
         return stdDev < rh.stdDev;
     }
@@ -97,12 +102,12 @@ class Optimize
 {
     std::vector<HaarWavelet> * wavelets;
     std::vector<cv::Mat> * integralSums;
-    tbb::concurrent_vector<MyClassifierData> * classifiers;
+    tbb::concurrent_vector<BandClassifierData> * classifiers;
 
     /**
      * Returns the principal component with the smallest variance.
      */
-    void getOptimals(mypca & pca, MyClassifierData & c) const
+    void getOptimals(mypca & pca, BandClassifierData & c) const
     {
         //The smallest eigenvalue is the last one
         const std::vector<double> eigenvector = pca.get_eigenvector( pca.get_num_variables() - 1 );
@@ -128,7 +133,7 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            MyClassifierData classifier( (*wavelets)[i] );
+            BandClassifierData classifier( (*wavelets)[i] );
 
             mypca pca;
             produceSrfs(pca, &classifier, *integralSums);
@@ -142,17 +147,17 @@ public:
 
     Optimize(std::vector<HaarWavelet> * wavelets_,
              std::vector<cv::Mat> * integralSums_,
-             tbb::concurrent_vector<MyClassifierData> * classifiers_) : wavelets(wavelets_),
+             tbb::concurrent_vector<BandClassifierData> * classifiers_) : wavelets(wavelets_),
                                                                       integralSums(integralSums_),
                                                                       classifiers(classifiers_) {}
 };
 
 
 
-void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<MyClassifierData> & classifiers)
+void writeClassifiersData(std::ofstream & outputStream, tbb::concurrent_vector<BandClassifierData> & classifiers)
 {
-    tbb::concurrent_vector<MyClassifierData>::const_iterator it = classifiers.begin();
-    tbb::concurrent_vector<MyClassifierData>::const_iterator end = classifiers.end();
+    tbb::concurrent_vector<BandClassifierData>::const_iterator it = classifiers.begin();
+    tbb::concurrent_vector<BandClassifierData>::const_iterator end = classifiers.end();
     for(; it != end; ++it)
     {
         it->write(outputStream);
@@ -222,7 +227,7 @@ int main(int argc, char* argv[])
 
 
 
-    tbb::concurrent_vector<MyClassifierData> classifiers;
+    tbb::concurrent_vector<BandClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &integralSums, &classifiers));
 
