@@ -121,7 +121,7 @@ public:
                << stdDev << ' '
                << histogram.size();
 
-        for (int i = 0; i < histogram.size(); ++i)
+        for (unsigned int i = 0; i < histogram.size(); ++i)
         {
             output << ' ' << histogram[i];
         }
@@ -130,8 +130,8 @@ public:
     }
 
 private:
-    double stdDev; //statistics taken from the feature value, not directly from the SRFS
-    double mean;
+    double mean; //statistics taken from the feature value, not directly from the SRFS
+    double stdDev;
 
     std::vector<double> histogram;
 };

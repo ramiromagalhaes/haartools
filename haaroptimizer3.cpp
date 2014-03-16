@@ -129,10 +129,10 @@ public:
 
 private:
      //statistics taken from the feature value, not directly from the SRFS
-    double positiveStdDev;
     double positiveMean;
-    double negativeStdDev;
+    double positiveStdDev;
     double negativeMean;
+    double negativeStdDev;
 };
 
 

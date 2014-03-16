@@ -47,7 +47,7 @@ void produceFeatureValues(myaccumulator & acc,
     const IntensityNormalizedWaveletEvaluator evaluator;
 
     const unsigned int records = integralSums.size();
-    for (int i = 0; i < records; ++i)
+    for (unsigned int i = 0; i < records; ++i)
     {
         acc( evaluator(wavelet, integralSums[i], uselessMat) );
     }
@@ -140,8 +140,8 @@ public:
 
 private:
      //statistics taken from the feature value, not directly from the SRFS
-    double positiveVariance, positiveMean;
-    double negativeVariance, negativeMean;
+    double positiveMean, positiveVariance;
+    double negativeMean, negativeVariance;
 
     double positiveSamplesCount, negativeSamplesCount;
 };

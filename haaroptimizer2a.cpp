@@ -25,7 +25,7 @@
 
 
 
-#define HISTOGRAM_BUCKETS 1000
+#define HISTOGRAM_BUCKETS 5000
 
 
 
@@ -99,13 +99,13 @@ public:
         }
 
         output << ' ' << positiveHistogram.size();
-        for (int i = 0; i < positiveHistogram.size(); ++i)
+        for (unsigned int i = 0; i < positiveHistogram.size(); ++i)
         {
             output << ' ' << positiveHistogram[i];
         }
 
         output << ' ' << negativeHistogram.size();
-        for (int i = 0; i < negativeHistogram.size(); ++i)
+        for (unsigned int i = 0; i < negativeHistogram.size(); ++i)
         {
             output << ' ' << negativeHistogram[i];
         }
