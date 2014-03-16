@@ -29,6 +29,11 @@
 
 
 
+/**
+ * Used to write data describing the positive instances as a normal distribution and
+ * the negative instances as a histogram. The positive and negative instances have their
+ * own weight.
+ */
 class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
