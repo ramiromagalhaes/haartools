@@ -46,6 +46,11 @@ add_executable(haaroptimizer2 haaroptimizer2.cpp mypca.h mypca.cpp optimization_
 target_link_libraries( haaroptimizer2 debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 target_link_libraries( haaroptimizer2 optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
+# The Haar wavelet PCA optimizer for an alternative to the second experiment
+add_executable(haaroptimizer2a haaroptimizer2a.cpp mypca.h mypca.cpp optimization_commons.h )
+target_link_libraries( haaroptimizer2a debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer2a optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+
 # Checks if the Haar wavelets optimized for the second experiment are okay
 add_executable( haarcheck2 haarcheck2.cpp )
 target_link_libraries( haarcheck2 haarcommon-release )
