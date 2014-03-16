@@ -25,6 +25,10 @@
 
 
 
+/**
+ * Data about the positive and negative instances, assuming they are modeled as gaussians.
+ * Each instance set has its own weights associated.
+ */
 class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
