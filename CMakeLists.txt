@@ -65,3 +65,6 @@ add_executable(haaroptimizer4 haaroptimizer4.cpp mypca.h mypca.cpp optimization_
 target_link_libraries( haaroptimizer4 debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 target_link_libraries( haaroptimizer4 optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
+add_executable(haaroptimizer4a haaroptimizer4a.cpp mypca.h mypca.cpp optimization_commons.h )
+target_link_libraries( haaroptimizer4a debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer4a optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
