@@ -6,6 +6,10 @@
 
 
 
+/**
+ * Extention of libpca's stats::pca class that adds the possibility
+ * of easily extracting the covariance matrix after the PCA procedure.
+ */
 class mypca : public stats::pca //99% copy and paste
 {
 public:
