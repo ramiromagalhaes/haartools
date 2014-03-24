@@ -41,7 +41,7 @@ protected:
 
 public:
     BandClassifierData() : MyHaarWavelet(),
-                       stdDev(0) {}
+                           stdDev(0) {}
 
     BandClassifierData(const HaarWavelet & h)
     {
