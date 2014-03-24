@@ -58,6 +58,9 @@ void produceFeatureValues(myaccumulator & acc,
 /**
  * Stores data to be used in weak classifiers that operate like Adhikari's paper
  * "Boosting-Based On-Road Obstacle Sensing Using Discriminative Weak Classifiers".
+ *
+ * IMPORTANT: this program trains Adhikari's classifier with the intensity normalization
+ * of the sample images.
  */
 class ProbabilisticClassifierData : public HaarWavelet
 {
