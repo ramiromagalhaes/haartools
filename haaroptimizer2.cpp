@@ -25,7 +25,7 @@
 
 
 
-#define HISTOGRAM_BUCKETS 12
+#define HISTOGRAM_BUCKETS 128
 
 
 
@@ -40,17 +40,19 @@ public:
     ProbabilisticClassifierData() : mean(.0),
                                     stdDev(1.0) {}
 
-    ProbabilisticClassifierData(const HaarWavelet & wavelet) : ProbabilisticClassifierData()
+    ProbabilisticClassifierData(const HaarWavelet & wavelet) : mean(.0),
+                                                               stdDev(1.0)
     {
-        std::vector<cv::Rect>::const_iterator it = wavelet.rects_begin();
-
-        for(; it != wavelet.rects_end(); ++it)
+        for(std::vector<cv::Rect>::const_iterator it = wavelet.rects_begin(); it != wavelet.rects_end(); ++it)
         {
             rects.push_back(*it);
         }
 
-        weightsPositive.resize(wavelet.dimensions(), 0);
-        weightsNegative.resize(wavelet.dimensions(), 0);
+        for(std::vector<float>::const_iterator it = wavelet.weights_begin(); it != wavelet.weights_end(); ++it)
+        {
+            weightsPositive.push_back(*it);
+            weightsNegative.push_back(*it);
+        }
     }
 
     ProbabilisticClassifierData(const DualWeightHaarWavelet & wavelet) : DualWeightHaarWavelet(wavelet),
@@ -104,6 +106,16 @@ public:
         histogram = histogram_;
     }
 
+    void setPositivePrior(double p)
+    {
+        positivePrior = p;
+    }
+
+    void setNegativePrior(double p)
+    {
+        negativePrior = p;
+    }
+
     bool operator < (const ProbabilisticClassifierData & rh) const
     {
         return stdDev < rh.stdDev;
@@ -117,8 +129,10 @@ public:
         }
 
         output << ' '
+               << positivePrior << ' '
                << mean << ' '
                << stdDev << ' '
+               << negativePrior << ' '
                << histogram.size();
 
         for (unsigned int i = 0; i < histogram.size(); ++i)
@@ -132,6 +146,8 @@ public:
 private:
     double mean; //statistics taken from the feature value, not directly from the SRFS
     double stdDev;
+
+    double positivePrior, negativePrior;
 
     std::vector<double> histogram;
 };
@@ -152,7 +168,7 @@ private:
     void getOptimalsForPositiveSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
         //The highest variance eigenvector is the first one.
-        c.setPositiveWeights(pca.get_eigenvector(0));
+        //c.setPositiveWeights(pca.get_eigenvector(0));
 
         {
             //This block sets the mean. It is acquired from the projection of the
@@ -186,7 +202,7 @@ private:
 
     void getOptimalsForNegativeSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
-        c.setNegativeWeights(pca.get_eigenvector(0));
+        //c.setNegativeWeights(pca.get_eigenvector(0));
 
         std::vector<double> histogram(HISTOGRAM_BUCKETS);
         std::fill(histogram.begin(), histogram.end(), .0);
@@ -216,6 +232,10 @@ public:
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
             ProbabilisticClassifierData classifier( (*wavelets)[i] );
+
+            const double positivePrior = double(positivesIntegralSums->size()) / (positivesIntegralSums->size() + negativesIntegralSums->size());
+            classifier.setPositivePrior(positivePrior);
+            classifier.setNegativePrior(1.0 - positivePrior);
 
             {
                 mypca positive_samples_pca;
@@ -333,8 +353,6 @@ int main(int argc, char* argv[])
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
-//    Optimize opt(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers);
-//    opt(tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()));
 
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());

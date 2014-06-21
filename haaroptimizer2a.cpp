@@ -25,10 +25,14 @@
 
 
 
-#define HISTOGRAM_BUCKETS 5000
+#define HISTOGRAM_BUCKETS 128
 
 
 
+/**
+ * Used to write data describing the distribution of both positive and negative
+ * instances histograms. The positive and negative instances have their own weight.
+ */
 class ProbabilisticClassifierData : public DualWeightHaarWavelet
 {
 public:
@@ -91,6 +95,16 @@ public:
         negativeHistogram = histogram_;
     }
 
+    void setPositivePrior(double p)
+    {
+        positivePrior = p;
+    }
+
+    void setNegativePrior(double p)
+    {
+        negativePrior = p;
+    }
+
     bool write(std::ostream &output) const
     {
         if ( !DualWeightHaarWavelet::write(output) )
@@ -98,13 +112,13 @@ public:
             return false;
         }
 
-        output << ' ' << positiveHistogram.size();
+        output << ' ' << positivePrior << ' ' << positiveHistogram.size();
         for (unsigned int i = 0; i < positiveHistogram.size(); ++i)
         {
             output << ' ' << positiveHistogram[i];
         }
 
-        output << ' ' << negativeHistogram.size();
+        output << ' ' << negativePrior << ' ' << negativeHistogram.size();
         for (unsigned int i = 0; i < negativeHistogram.size(); ++i)
         {
             output << ' ' << negativeHistogram[i];
@@ -115,6 +129,7 @@ public:
 
 private:
     std::vector<double> positiveHistogram, negativeHistogram;
+    double positivePrior, negativePrior;
 };
 
 
@@ -125,10 +140,10 @@ private:
 class Optimize
 {
 private:
-    std::vector<HaarWavelet> * wavelets;
-    std::vector<cv::Mat> * positivesIntegralSums;
-    std::vector<cv::Mat> * negativesIntegralSums;
-    tbb::concurrent_vector<ProbabilisticClassifierData> * classifiers;
+    std::vector<HaarWavelet> & wavelets;
+    std::vector<cv::Mat> & positivesIntegralSums;
+    std::vector<cv::Mat> & negativesIntegralSums;
+    tbb::concurrent_vector<ProbabilisticClassifierData> & classifiers;
 
     void getOptimalsForPositiveSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
@@ -190,30 +205,36 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
-            ProbabilisticClassifierData classifier( (*wavelets)[i] );
+            ProbabilisticClassifierData classifier( wavelets[i] );
+
+            {
+                const double positivePrior = (double)positivesIntegralSums.size() / (positivesIntegralSums.size() + negativesIntegralSums.size());
+                classifier.setPositivePrior(positivePrior);
+                classifier.setNegativePrior(1.0 - positivePrior);
+            }
 
             {
                 mypca positive_samples_pca;
-                produceSrfs(positive_samples_pca, &classifier, *positivesIntegralSums);
+                produceSrfs(positive_samples_pca, &classifier, positivesIntegralSums);
                 positive_samples_pca.solve();
                 getOptimalsForPositiveSamples(positive_samples_pca, classifier);
             }
 
             {
                 mypca negative_samples_pca;
-                produceSrfs(negative_samples_pca, &classifier, *negativesIntegralSums);
+                produceSrfs(negative_samples_pca, &classifier, negativesIntegralSums);
                 negative_samples_pca.solve();
                 getOptimalsForNegativeSamples(negative_samples_pca, classifier);
             }
 
-            classifiers->push_back(classifier);
+            classifiers.push_back(classifier);
         }
     }
 
-    Optimize(std::vector<HaarWavelet> * wavelets_,
-             std::vector<cv::Mat> * positivesIntegralSums_,
-             std::vector<cv::Mat> * negativesIntegralSums_,
-             tbb::concurrent_vector<ProbabilisticClassifierData> * classifiers_) : wavelets(wavelets_),
+    Optimize(std::vector<HaarWavelet> & wavelets_,
+             std::vector<cv::Mat> & positivesIntegralSums_,
+             std::vector<cv::Mat> & negativesIntegralSums_,
+             tbb::concurrent_vector<ProbabilisticClassifierData> & classifiers_) : wavelets(wavelets_),
                                                                                    positivesIntegralSums(positivesIntegralSums_),
                                                                                    negativesIntegralSums(negativesIntegralSums_),
                                                                                    classifiers(classifiers_) {}
@@ -307,12 +328,7 @@ int main(int argc, char* argv[])
 
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
-                       Optimize(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers));
-//    Optimize opt(&wavelets, &positivesIntegralSums, &negativesIntegralSums, &classifiers);
-//    opt(tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()));
-
-    //sort the solutions using the variance. The smallest variance goes first
-    //tbb::parallel_sort(classifiers.begin(), classifiers.end());
+                       Optimize(wavelets, positivesIntegralSums, negativesIntegralSums, classifiers));
 
     std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
 
