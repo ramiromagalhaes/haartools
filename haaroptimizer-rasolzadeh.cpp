@@ -40,14 +40,23 @@ public:
 
     ProbabilisticClassifierData(const HaarWavelet & wavelet)
     {
-        std::vector<cv::Rect>::const_iterator it = wavelet.rects_begin();
-
-        for(; it != wavelet.rects_end(); ++it)
         {
-            rects.push_back(*it);
+            rects.clear();
+            std::vector<cv::Rect>::const_iterator it = wavelet.rects_begin();
+            for(; it != wavelet.rects_end(); ++it)
+            {
+                rects.push_back(*it);
+            }
         }
 
-        HaarWavelet:weights.resize(wavelet.dimensions(), 0);
+        {
+            weights.clear();
+            std::vector<float>::const_iterator it = wavelet.weights_begin();
+            for(; it != wavelet.weights_end(); ++it)
+            {
+                weights.push_back(*it);
+            }
+        }
     }
 
     ProbabilisticClassifierData& operator=(const ProbabilisticClassifierData & c)
@@ -127,8 +136,8 @@ class Optimize
 {
 private:
     std::vector<HaarWavelet> & wavelets;
-    std::vector<cv::Mat> & positivesIntegralSums;
-    std::vector<cv::Mat> & negativesIntegralSums;
+    std::vector<Integrals> & positivesIntegrals;
+    std::vector<Integrals> & negativesIntegrals;
     tbb::concurrent_vector<ProbabilisticClassifierData> & classifiers;
 
     void fillHistogram(mypca & pca, ProbabilisticClassifierData & c, std::vector<double> &histogram) const
@@ -184,21 +193,21 @@ public:
             ProbabilisticClassifierData classifier( wavelets[i] );
 
             {
-                const double positivePrior = (double)positivesIntegralSums.size() / (positivesIntegralSums.size() + negativesIntegralSums.size());
+                const double positivePrior = (double)positivesIntegrals.size() / (positivesIntegrals.size() + negativesIntegrals.size());
                 classifier.setPositivePrior(positivePrior);
                 classifier.setNegativePrior(1.0 - positivePrior);
             }
 
             {
                 mypca positive_samples_pca;
-                produceSrfs(positive_samples_pca, &classifier, positivesIntegralSums);
+                produceSrfs(positive_samples_pca, &classifier, positivesIntegrals);
                 positive_samples_pca.solve();
                 getOptimalsForPositiveSamples(positive_samples_pca, classifier);
             }
 
             {
                 mypca negative_samples_pca;
-                produceSrfs(negative_samples_pca, &classifier, negativesIntegralSums);
+                produceSrfs(negative_samples_pca, &classifier, negativesIntegrals);
                 negative_samples_pca.solve();
                 getOptimalsForNegativeSamples(negative_samples_pca, classifier);
             }
@@ -208,11 +217,11 @@ public:
     }
 
     Optimize(std::vector<HaarWavelet> & wavelets_,
-             std::vector<cv::Mat> & positivesIntegralSums_,
-             std::vector<cv::Mat> & negativesIntegralSums_,
+             std::vector<Integrals> & positivesIntegrals_,
+             std::vector<Integrals> & negativesIntegrals_,
              tbb::concurrent_vector<ProbabilisticClassifierData> & classifiers_) : wavelets(wavelets_),
-                                                                                   positivesIntegralSums(positivesIntegralSums_),
-                                                                                   negativesIntegralSums(negativesIntegralSums_),
+                                                                                   positivesIntegrals(positivesIntegrals_),
+                                                                                   negativesIntegrals(negativesIntegrals_),
                                                                                    classifiers(classifiers_) {}
 };
 
@@ -254,7 +263,8 @@ int main(int argc, char* argv[])
 
 
     std::vector<HaarWavelet> wavelets;
-    std::vector<cv::Mat> positivesIntegralSums, negativesIntegralSums;
+    std::vector<cv::Mat> positiveImages, negativeImages;
+    std::vector<Integrals> positivesIntegrals, negativesIntegrals;
     std::ofstream outputStream;
 
 
@@ -276,26 +286,28 @@ int main(int argc, char* argv[])
         }
 
         //TODO The second parameter here does not match what is expected for the rest of the program!
-        if ( !SampleExtractor::extractFromBigImage(positiveSamplesImage, positivesIntegralSums) )
+        if ( !SampleExtractor::extractFromBigImage(positiveSamplesImage, positiveImages) )
         {
             std::cout << "Failed to load positive samples." << std::endl;
             return 6;
         }
-        std::transform(positivesIntegralSums.begin(), positivesIntegralSums.end(),
-                       positivesIntegralSums.begin(),
-                       ToIntegralSums());
-        std::cout << positivesIntegralSums.size() << " positive samples loaded." << std::endl;
+        positivesIntegrals.resize(positiveImages.size());
+        std::transform(positiveImages.begin(), positiveImages.end(),
+                       positivesIntegrals.begin(),
+                       ToIntegrals());
+        std::cout << positivesIntegrals.size() << " positive samples loaded." << std::endl;
 
         //TODO The third parameter here does not match what is expected for the rest of the program!
-        if ( !SampleExtractor::extractFromBigImage(negativeSamplesImage, negativeSamplesIndex, negativesIntegralSums) )
+        if ( !SampleExtractor::extractFromBigImage(negativeSamplesImage, negativeSamplesIndex, negativeImages) )
         {
             std::cout << "Failed to load negative samples." << std::endl;
             return 7;
         }
-        std::transform(negativesIntegralSums.begin(), negativesIntegralSums.end(),
-                       negativesIntegralSums.begin(),
-                       ToIntegralSums());
-        std::cout << negativesIntegralSums.size() << " negative samples loaded." << std::endl;
+        negativesIntegrals.resize(negativeImages.size());
+        std::transform(negativeImages.begin(), negativeImages.end(),
+                       negativesIntegrals.begin(),
+                       ToIntegrals());
+        std::cout << negativesIntegrals.size() << " negative samples loaded." << std::endl;
     }
 
 
@@ -303,12 +315,14 @@ int main(int argc, char* argv[])
     std::cout << "Optimizing Haar-like features..." << std::endl;
 
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
-    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
-                       Optimize(wavelets, positivesIntegralSums, negativesIntegralSums, classifiers));
+//    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
+//                       Optimize(wavelets, positivesIntegrals, negativesIntegrals, classifiers));
+    Optimize o(wavelets, positivesIntegrals, negativesIntegrals, classifiers);
+    o( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()) );
 
     std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
 
-    //write all haar wavelets sorted from best to worst
+    //write all haar wavelets
     writeClassifiersData(outputStream, classifiers);
 
     return 0;

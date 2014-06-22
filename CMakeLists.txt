@@ -13,7 +13,7 @@ find_package( Boost REQUIRED COMPONENTS filesystem system )
 # Includes libpca
 include_directories( /home/ramiro/workspace/libpca-1.2.11/include/ )
 add_library( libpca SHARED IMPORTED )
-set_target_properties( libpca PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/libpca-1.2.11/build/libpca.so.1.2.11 )
+set_target_properties( libpca PROPERTIES IMPORTED_LOCATION /home/ramiro/workspace/libpca-1.2.11/build/libpca.so )
 
 # Includes haarcommon
 include_directories( /home/ramiro/workspace/haarcommon/src/ )
@@ -51,10 +51,10 @@ add_executable(haaroptimizer-hist-hist haaroptimizer-hist-hist.cpp mypca.h mypca
 target_link_libraries( haaroptimizer-hist-hist debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 target_link_libraries( haaroptimizer-hist-hist optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
-# The Haar wavelet for the positive and negative histogram with a single weight experiment
-add_executable(haaroptimizer-hist-hist-singleweight haaroptimizer-hist-hist-singleweight.cpp mypca.h mypca.cpp optimization_commons.h )
-target_link_libraries( haaroptimizer-hist-hist-singleweight debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
-target_link_libraries( haaroptimizer-hist-hist-singleweight optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+# The Haar wavelet for the Rasolzadeh default experiment
+add_executable(haaroptimizer-rasolzadeh haaroptimizer-rasolzadeh.cpp mypca.h mypca.cpp optimization_commons.h )
+target_link_libraries( haaroptimizer-rasolzadeh debug     haarcommon-debug   trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
+target_link_libraries( haaroptimizer-rasolzadeh optimized haarcommon-release trainingdatabase libpca armadillo tbb ${OpenCV_LIBS} ${Boost_LIBRARIES} )
 
 # Checks if the Haar wavelets optimized for the second experiment are okay
 add_executable( haarcheck2 haarcheck2.cpp )

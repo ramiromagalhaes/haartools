@@ -38,43 +38,6 @@ typedef boost::accumulators::accumulator_set<double,
 
 
 
-struct Integrals
-{
-    cv::Mat iSum, iSquare;
-
-    Integrals() {}
-
-    Integrals(cv::Mat & iSum_, cv::Mat & iSquare_)
-    {
-        iSum = iSum_;
-        iSquare = iSquare_;
-    }
-
-    Integrals & operator=(const Integrals & i)
-    {
-        iSum = i.iSum;
-        iSquare = i.iSquare;
-        return *this;
-    }
-};
-
-
-
-struct ToIntegrals
-{
-    inline Integrals operator()(cv::Mat & image) const
-    {
-        cv::Mat iSum(image.rows + 1, image.cols + 1, cv::DataType<double>::type);
-        cv::Mat iSquare(image.rows + 1, image.cols + 1, cv::DataType<double>::type);
-        cv::integral(image, iSum, iSquare, cv::DataType<double>::type);
-
-        Integrals i(iSum, iSquare);
-        return i;
-    }
-};
-
-
-
 void produceFeatureValues(myaccumulator & acc,
                           const HaarWavelet & wavelet,
                           const std::vector<Integrals> & integrals)
@@ -326,8 +289,6 @@ int main(int argc, char* argv[])
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
     tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
                        Optimize(wavelets, positivesIntegrals, negativesIntegrals, classifiers));
-
-
 
     //sort the solutions using the variance. The smallest variance goes first
     tbb::parallel_sort(classifiers.begin(), classifiers.end());
