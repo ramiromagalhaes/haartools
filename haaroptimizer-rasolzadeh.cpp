@@ -30,8 +30,10 @@
 
 
 /**
- * Used to write data describing the distribution of both positive and negative
- * instances histograms. The positive and negative instances have their own weight.
+ * Used to store and dump data describing the distribution of both positive and negative
+ * instances histograms. This is very similar to Babak Rasolzadeh's et al. work named
+ * "Response Binning: Improved Weak Classifiers for Boosting". Note that the histogram
+ * resolution is also the same as those author's.
  */
 class ProbabilisticClassifierData : public HaarWavelet
 {
@@ -315,10 +317,8 @@ int main(int argc, char* argv[])
     std::cout << "Optimizing Haar-like features..." << std::endl;
 
     tbb::concurrent_vector<ProbabilisticClassifierData> classifiers;
-//    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
-//                       Optimize(wavelets, positivesIntegrals, negativesIntegrals, classifiers));
-    Optimize o(wavelets, positivesIntegrals, negativesIntegrals, classifiers);
-    o( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()) );
+    tbb::parallel_for( tbb::blocked_range< std::vector<HaarWavelet>::size_type >(0, wavelets.size()),
+                       Optimize(wavelets, positivesIntegrals, negativesIntegrals, classifiers));
 
     std::cout << "Done optimizing. Writing results to " <<  classifiersFileName << std::endl;
 
