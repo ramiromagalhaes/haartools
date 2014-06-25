@@ -144,6 +144,7 @@ private:
 
     void fillHistogram(mypca & pca, ProbabilisticClassifierData & c, std::vector<double> &histogram) const
     {
+        const int buckets = histogram.size();
         const double increment = 1.0/pca.get_num_records();
 
         for (long i = 0; i < pca.get_num_records(); ++i)
@@ -153,23 +154,20 @@ private:
                                                            c.weights_end(),
                                                            r.begin(), .0);
 
-            //increment bin count
-            const int index = featureValue >= std::sqrt(2) ? histogram.size() :
+            //increment bin count (copy & paste from HistogramDiscriminant class)
+            const int index = featureValue >= std::sqrt(2) ? histogram.size() - 1 :
                               featureValue <= -std::sqrt(2) ? 0 :
-                              (int)((histogram.size()/2.0) * featureValue / std::sqrt(2)) + histogram.size()/2;
+                              (int)((buckets/2.0) * featureValue / std::sqrt(2.0)) + (buckets/2.0);
             histogram[index] += increment;
         }
     }
 
     void getOptimalsForPositiveSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
-        //Don't set weights. Use the defaults.
-
         std::vector<double> histogram(HISTOGRAM_BUCKETS);
         std::fill(histogram.begin(), histogram.end(), .0);
 
         fillHistogram(pca, c, histogram);
-
         c.setPositiveHistogram(histogram);
     }
 
@@ -177,13 +175,10 @@ private:
 
     void getOptimalsForNegativeSamples(mypca & pca, ProbabilisticClassifierData & c) const
     {
-        //Don't set weights. Use the defaults.
-
         std::vector<double> histogram(HISTOGRAM_BUCKETS);
         std::fill(histogram.begin(), histogram.end(), .0);
 
         fillHistogram(pca, c, histogram);
-
         c.setNegativeHistogram(histogram);
     }
 
@@ -192,6 +187,7 @@ public:
     {
         for(std::vector<HaarWavelet>::size_type i = range.begin(); i != range.end(); ++i)
         {
+            //Don't set weights. Use the defaults.
             ProbabilisticClassifierData classifier( wavelets[i] );
 
             {
